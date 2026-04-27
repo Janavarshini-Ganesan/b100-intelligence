@@ -1,0 +1,33 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# NEVER commit your secrets
+.env
+
+# Data files (too large for GitHub)
+data/raw/
+data/clean/
+data/output/
+*.xlsx
+*.csv
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Logs
+logs/
+*.log
+
+# Power BI (large files)
+*.pbix
+
+# Django
+staticfiles/
+db.sqlite3
+
+# OS
+.DS_Store
+Thumbs.db
