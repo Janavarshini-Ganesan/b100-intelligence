@@ -21,8 +21,7 @@ data/output/
 logs/
 *.log
 
-# Power BI (large files)
-*.pbix
+
 
 # Django
 staticfiles/
