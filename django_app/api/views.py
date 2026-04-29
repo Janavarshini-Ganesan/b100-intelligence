@@ -322,3 +322,54 @@ class DashboardSummaryView(APIView):
 
         cache.set(cache_key, result, 3600)
         return Response(result)
+
+
+
+# Add these 3 classes at the BOTTOM of your existing api/views.py
+
+from django.utils import timezone
+
+# ─────────────────────────────────────────────────────────────
+# ETL TRIGGER ENDPOINTS
+# ─────────────────────────────────────────────────────────────
+
+class TriggerETLView(APIView):
+    """Manually trigger full ETL pipeline."""
+
+    @extend_schema(summary="Manually trigger ETL pipeline")
+    def post(self, request):
+        from api.tasks import run_full_etl
+        task = run_full_etl.delay()
+        return Response({
+            "message": "ETL pipeline triggered",
+            "task_id": task.id,
+            "status":  "queued",
+            "note":    "Check /api/etl/status/ for progress"
+        })
+
+
+class TriggerMLView(APIView):
+    """Manually trigger ML scoring."""
+
+    @extend_schema(summary="Manually trigger ML scoring")
+    def post(self, request):
+        from api.tasks import run_ml_scoring
+        task = run_ml_scoring.delay()
+        return Response({
+            "message": "ML scoring triggered",
+            "task_id": task.id,
+            "status":  "queued"
+        })
+
+
+class ETLStatusView(APIView):
+    """Check Celery/Redis health status."""
+
+    @extend_schema(summary="Check ETL system health")
+    def get(self, request):
+        from api.tasks import health_check
+        result = health_check.delay().get(timeout=10)
+        return Response({
+            "checked_at": timezone.now().isoformat(),
+            "result":     result
+        })

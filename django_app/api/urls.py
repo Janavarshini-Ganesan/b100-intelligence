@@ -20,4 +20,8 @@ urlpatterns = [
 
     # ── Dashboard KPIs ─────────────────────────
     path("dashboard/summary/",   views.DashboardSummaryView.as_view(), name="summary"),
+
+    path("etl/trigger/",    views.TriggerETLView.as_view(),  name="trigger-etl"),
+    path("etl/trigger-ml/", views.TriggerMLView.as_view(),   name="trigger-ml"),
+    path("etl/status/",     views.ETLStatusView.as_view(),   name="etl-status"),
 ]
