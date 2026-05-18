@@ -1,32 +1,25 @@
-# Python
 venv/
+.venv/
 __pycache__/
 *.pyc
 *.pyo
 
-# NEVER commit your secrets
 .env
+.env.local
 
-# Data files (too large for GitHub)
+.ipynb_checkpoints/
+
+logs/
+*.log
+
+staticfiles/
+db.sqlite3
+
+.DS_Store
+Thumbs.db
+
 data/raw/
 data/clean/
 data/output/
 *.xlsx
 *.csv
-
-# Jupyter
-.ipynb_checkpoints/
-
-# Logs
-logs/
-*.log
-
-
-
-# Django
-staticfiles/
-db.sqlite3
-
-# OS
-.DS_Store
-Thumbs.db

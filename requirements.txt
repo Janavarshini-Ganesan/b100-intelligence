@@ -1,37 +1,22 @@
-# B100 Intelligence — Python Dependencies
-
-# Core data
-pandas==2.2.2
-openpyxl==3.1.2
-numpy==1.26.4
-
-# Database
-sqlalchemy==2.0.30
-psycopg2-binary==2.9.9
-
-# Environment
-python-dotenv==1.0.1
-
-# Data science / ML
-scikit-learn==1.4.2
-scipy==1.13.0
-matplotlib==3.9.0
-seaborn==0.13.2
-
-# Django + API
 django==4.2.13
 djangorestframework==3.15.2
 drf-spectacular==0.27.2
 django-cors-headers==4.3.1
+whitenoise==6.9.0
+python-dotenv==1.0.1
 
-# Background tasks
+pandas==2.2.2
+openpyxl==3.1.2
+numpy==1.26.4
+sqlalchemy==2.0.30
+psycopg2-binary==2.9.9
+
 celery==5.4.0
 redis==5.0.7
 
-# Jupyter
-jupyter==1.0.0
-ipykernel==6.29.4
-
-# Utilities
+scikit-learn==1.4.2
+scipy==1.13.0
+matplotlib==3.9.0
+seaborn==0.13.2
 tqdm==4.66.4
 tabulate==0.9.0
