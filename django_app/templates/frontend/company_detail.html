@@ -1,0 +1,701 @@
+{% extends 'frontend/base.html' %}
+{% block title %}{{ symbol }} — B100 Intelligence{% endblock %}
+
+{% block content %}
+
+<!-- BREADCRUMB + HEADER -->
+<div class="page-header pb-0">
+  <div class="container-fluid px-4">
+
+    <!-- Breadcrumb -->
+    <nav class="breadcrumb-nav mb-3" aria-label="breadcrumb">
+      <a href="{% url 'home' %}">Overview</a>
+      <span class="bc-sep">/</span>
+      <a href="{% url 'companies' %}">Companies</a>
+      <span class="bc-sep">/</span>
+      <span id="bc_symbol" class="bc-current">{{ symbol }}</span>
+    </nav>
+
+    <!-- Company header card -->
+    <div class="company-hero-card mb-0">
+      <div class="d-flex align-items-start gap-3 flex-wrap">
+
+        <!-- Avatar -->
+        <div class="co-avatar" id="coAvatar">—</div>
+
+        <!-- Name + meta -->
+        <div class="flex-1">
+          <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+            <h1 class="co-name mb-0" id="coName">Loading…</h1>
+            <span class="co-symbol-badge" id="coSymbol">{{ symbol }}</span>
+          </div>
+          <div class="d-flex gap-3 flex-wrap align-items-center">
+            <span class="co-meta"><i class="bi bi-diagram-3 me-1"></i><span id="coSector">—</span></span>
+            <span class="co-meta"><i class="bi bi-globe2 me-1"></i>
+              <a id="coWebsite" href="#" target="_blank" rel="noopener" class="co-link d-none">Website</a>
+              <span id="coWebsiteNone" class="text-muted">—</span>
+            </span>
+            <span class="co-meta"><i class="bi bi-currency-rupee me-1"></i>Face value:
+              <strong id="coFace">—</strong>
+            </span>
+          </div>
+        </div>
+
+        <!-- Health score pill -->
+        <div class="ms-auto text-end">
+          <div class="co-score-ring" id="coScoreRing">
+            <svg viewBox="0 0 56 56" class="score-svg">
+              <circle cx="28" cy="28" r="24" fill="none" stroke="var(--color-border)" stroke-width="4"/>
+              <circle cx="28" cy="28" r="24" fill="none" id="scoreArc"
+                      stroke="var(--color-primary)" stroke-width="4"
+                      stroke-dasharray="0 151" stroke-linecap="round"
+                      transform="rotate(-90 28 28)"/>
+            </svg>
+            <div class="score-ring-val" id="coScore">—</div>
+          </div>
+          <div class="mt-1">
+            <span class="health-badge" id="coHealthBadge">—</span>
+          </div>
+          <div class="co-rank-txt mt-1" id="coRank"></div>
+        </div>
+
+      </div>
+
+      <!-- Nav tabs -->
+      <div class="co-tabs mt-4">
+        <button class="co-tab active" data-tab="overview">Overview</button>
+        <button class="co-tab" data-tab="financials">Financials</button>
+        <button class="co-tab" data-tab="cashflow">Cash Flow</button>
+        <button class="co-tab" data-tab="ratios">Ratios & Scores</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── TAB: OVERVIEW ──────────────────────────────────── -->
+<div class="tab-panel active" id="tab_overview">
+  <div class="container-fluid px-4 py-4">
+
+    <!-- KPI Row -->
+    <div class="row g-3 mb-4" id="overviewKPIs">
+      <div class="col-6 col-md-3"><div class="kpi-card" id="kpi_revenue"></div></div>
+      <div class="col-6 col-md-3"><div class="kpi-card" id="kpi_netprofit"></div></div>
+      <div class="col-6 col-md-3"><div class="kpi-card" id="kpi_roe"></div></div>
+      <div class="col-6 col-md-3"><div class="kpi-card" id="kpi_eps"></div></div>
+    </div>
+
+    <div class="row g-4">
+      <!-- Revenue trend chart -->
+      <div class="col-lg-8">
+        <div class="card h-100">
+          <div class="card-header">
+            <i class="bi bi-bar-chart-line me-2 text-primary-custom"></i>Revenue & Net Profit Trend
+            <div class="ms-auto d-flex gap-1">
+              <span class="chart-legend-dot" style="background:#0f766e"></span>
+              <span class="chart-legend-lbl">Revenue</span>
+              <span class="chart-legend-dot ms-3" style="background:#2563eb"></span>
+              <span class="chart-legend-lbl">Net Profit</span>
+            </div>
+          </div>
+          <div class="card-body"><canvas id="revChart" height="220"></canvas></div>
+        </div>
+      </div>
+      <!-- Score breakdown -->
+      <div class="col-lg-4">
+        <div class="card h-100">
+          <div class="card-header">
+            <i class="bi bi-radar me-2 text-primary-custom"></i>Score Breakdown
+          </div>
+          <div class="card-body"><canvas id="scoreRadar" height="230"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── TAB: FINANCIALS ────────────────────────────────── -->
+<div class="tab-panel" id="tab_financials">
+  <div class="container-fluid px-4 py-4">
+    <div class="row g-4">
+
+      <!-- P&L Table -->
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header">
+            <i class="bi bi-table me-2 text-primary-custom"></i>Profit & Loss Statement
+            <span class="text-muted ms-2" style="font-size:.75rem;">(₹ Cr)</span>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-fin mb-0">
+                <thead><tr id="plHead"><th>Metric</th></tr></thead>
+                <tbody id="plBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Balance Sheet Table -->
+      <div class="col-lg-6">
+        <div class="card h-100">
+          <div class="card-header">
+            <i class="bi bi-bank me-2 text-primary-custom"></i>Balance Sheet
+            <span class="text-muted ms-2" style="font-size:.75rem;">(₹ Cr)</span>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-fin mb-0">
+                <thead><tr id="bsHead"><th>Metric</th></tr></thead>
+                <tbody id="bsBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- EPS + OPM trend -->
+      <div class="col-lg-6">
+        <div class="card h-100">
+          <div class="card-header">
+            <i class="bi bi-graph-up me-2 text-primary-custom"></i>EPS & Operating Profit Margin
+          </div>
+          <div class="card-body"><canvas id="epsChart" height="250"></canvas></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ── TAB: CASH FLOW ─────────────────────────────────── -->
+<div class="tab-panel" id="tab_cashflow">
+  <div class="container-fluid px-4 py-4">
+    <div class="row g-4">
+
+      <!-- Cash flow table -->
+      <div class="col-lg-7">
+        <div class="card h-100">
+          <div class="card-header">
+            <i class="bi bi-arrow-left-right me-2 text-primary-custom"></i>Cash Flow Statement
+            <span class="text-muted ms-2" style="font-size:.75rem;">(₹ Cr)</span>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-fin mb-0">
+                <thead><tr id="cfHead"><th>Activity</th></tr></thead>
+                <tbody id="cfBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Waterfall / grouped bar -->
+      <div class="col-lg-5">
+        <div class="card h-100">
+          <div class="card-header">
+            <i class="bi bi-bar-chart me-2 text-primary-custom"></i>Cash Flow Breakdown
+          </div>
+          <div class="card-body"><canvas id="cfChart" height="260"></canvas></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ── TAB: RATIOS ────────────────────────────────────── -->
+<div class="tab-panel" id="tab_ratios">
+  <div class="container-fluid px-4 py-4">
+    <div class="row g-4">
+
+      <!-- Ratio grid -->
+      <div class="col-lg-7">
+        <div class="card">
+          <div class="card-header">
+            <i class="bi bi-calculator me-2 text-primary-custom"></i>Key Financial Ratios
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-fin mb-0">
+                <thead><tr id="ratioHead"><th>Ratio</th></tr></thead>
+                <tbody id="ratioBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Score tiles -->
+      <div class="col-lg-5">
+        <div class="card mb-4">
+          <div class="card-header">
+            <i class="bi bi-patch-check me-2 text-primary-custom"></i>ML Health Score Detail
+          </div>
+          <div class="card-body" id="scoreTiles">
+            <div class="text-muted text-center py-4">Loading score detail…</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <i class="bi bi-graph-up-arrow me-2 text-primary-custom"></i>ROE Trend
+          </div>
+          <div class="card-body"><canvas id="roeChart" height="160"></canvas></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+
+{% block extra_scripts %}
+<script>
+const SYM = '{{ symbol }}';
+const HEALTH_COLORS = {
+  EXCELLENT: { bg:'#f0fdf4', text:'#15803d', border:'#bbf7d0', stroke:'#16a34a' },
+  GOOD:      { bg:'#eff6ff', text:'#1d4ed8', border:'#bfdbfe', stroke:'#2563eb' },
+  AVERAGE:   { bg:'#fefce8', text:'#854d0e', border:'#fde68a', stroke:'#d97706' },
+  WEAK:      { bg:'#fff7ed', text:'#c2410c', border:'#fed7aa', stroke:'#ea580c' },
+  POOR:      { bg:'#fef2f2', text:'#dc2626', border:'#fecaca', stroke:'#dc2626' },
+};
+
+// ── Tab logic ────────────────────────────────────────────
+document.querySelectorAll('.co-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.co-tab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab_' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ── Helpers ──────────────────────────────────────────────
+const fmt  = v => (v != null && v !== '') ? Number(v).toLocaleString('en-IN', { maximumFractionDigits: 2 }) : '—';
+const fmtP = v => (v != null && v !== '') ? Number(v).toFixed(2) + '%' : '—';
+const isNeg = v => v != null && Number(v) < 0;
+
+function getInitials(name) {
+  if (!name) return '??';
+  const w = name.trim().split(/\s+/);
+  return w.length === 1 ? w[0].slice(0, 2).toUpperCase() : (w[0][0] + w[1][0]).toUpperCase();
+}
+
+function setKPI(id, label, val, sub) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.innerHTML = `
+    <div class="kpi-label">${label}</div>
+    <div class="kpi-value">${val}</div>
+    <div class="kpi-sub">${sub}</div>`;
+}
+
+// ── Safe fetch — never throws ────────────────────────────
+async function safeFetch(url) {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) { console.warn(`${url} → ${res.status}`); return {}; }
+    const ct = res.headers.get('content-type') || '';
+    if (!ct.includes('application/json')) { console.warn(`${url} returned non-JSON`); return {}; }
+    return await res.json();
+  } catch (e) {
+    console.warn(`Fetch failed: ${url}`, e);
+    return {};
+  }
+}
+
+// ── Build financial table (years as columns) ─────────────
+function buildTable(headId, bodyId, rows, years) {
+  const head = document.getElementById(headId);
+  const body = document.getElementById(bodyId);
+  if (!head || !body) return;
+
+  head.innerHTML = '<th>Metric</th>' + years.map(y => `<th class="text-end">${y}</th>`).join('');
+  body.innerHTML = rows.map(r => `
+    <tr>
+      <td class="fin-row-label">${r.label}</td>
+      ${years.map(y => {
+        const v = r.data[y];
+        return `<td class="text-end tabnum ${isNeg(v) ? 'text-danger' : ''} ${r.highlight ? 'fw-600' : ''}">
+          ${r.pct ? fmtP(v) : fmt(v)}
+        </td>`;
+      }).join('')}
+    </tr>`).join('');
+}
+
+// ── Main loader ──────────────────────────────────────────
+async function loadDetail() {
+  const [comp, score, pl, bs, cf] = await Promise.all([
+    safeFetch(`/api/companies/${SYM}/`),
+    safeFetch(`/api/scores/${SYM}/`),
+    safeFetch(`/api/financials/${SYM}/pl/`),
+    safeFetch(`/api/financials/${SYM}/bs/`),
+    safeFetch(`/api/financials/${SYM}/cf/`),
+  ]);
+
+  populateHeader(comp, score);
+  populateOverview(pl, score);
+  populateFinancials(pl, bs);
+  populateCashFlow(cf);
+  populateRatios(pl, bs, score);
+}
+
+// ── Header ───────────────────────────────────────────────
+function populateHeader(comp, score) {
+  const name   = comp.company_name || comp.symbol || SYM;
+  const sector = comp.sector || 'Other';
+  const label  = score.health_label || 'AVERAGE';
+  const col    = HEALTH_COLORS[label] || HEALTH_COLORS['AVERAGE'];
+
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  set('coName',    name);
+  set('coSector',  sector);
+  set('bc_symbol', comp.symbol || SYM);
+  set('coSymbol',  comp.symbol || SYM);
+  set('coFace',    comp.face_value != null ? '₹' + comp.face_value : '—');
+
+  // Website
+  if (comp.website) {
+    const el = document.getElementById('coWebsite');
+    if (el) { el.href = comp.website; el.textContent = 'Visit website'; el.classList.remove('d-none'); }
+    const none = document.getElementById('coWebsiteNone');
+    if (none) none.classList.add('d-none');
+  }
+
+  // Avatar
+  const av = document.getElementById('coAvatar');
+  if (av) { av.textContent = getInitials(name); av.style.background = col.bg; av.style.color = col.text; }
+
+  // Score ring
+  const s = score.total_score;
+  const scoreEl = document.getElementById('coScore');
+  if (scoreEl) scoreEl.textContent = s != null ? Math.round(s) : '—';
+  if (s != null) {
+    const circ = 2 * Math.PI * 24;
+    const fill = (Math.min(s, 100) / 100) * circ;
+    const arc = document.getElementById('scoreArc');
+    if (arc) {
+      arc.setAttribute('stroke-dasharray', `${fill} ${circ}`);
+      arc.setAttribute('stroke', col.stroke);
+    }
+  }
+
+  // Health badge
+  const badge = document.getElementById('coHealthBadge');
+  if (badge) {
+    badge.textContent        = label;
+    badge.style.background   = col.bg;
+    badge.style.color        = col.text;
+    badge.style.borderColor  = col.border;
+  }
+
+  // Rank
+  const rankEl = document.getElementById('coRank');
+  if (rankEl && score.rank) rankEl.textContent = `Rank #${score.rank} of 101`;
+}
+
+// ── Overview tab ─────────────────────────────────────────
+function populateOverview(pl, score) {
+  const entries = pl.data || pl.results || pl.profit_loss || [];
+  if (!entries.length) {
+    ['kpi_revenue','kpi_netprofit','kpi_roe','kpi_eps'].forEach(id => setKPI(id,'—','—','No data'));
+    return;
+  }
+
+  const latest = entries[entries.length - 1];
+  const prev   = entries.length > 1 ? entries[entries.length - 2] : null;
+  const revGrowth = prev && prev.sales
+    ? (((latest.sales - prev.sales) / Math.abs(prev.sales)) * 100).toFixed(1) + '% YoY'
+    : 'Latest year';
+
+  setKPI('kpi_revenue',   'Revenue (₹Cr)',   fmt(latest.sales),          revGrowth);
+  setKPI('kpi_netprofit', 'Net Profit (₹Cr)', fmt(latest.net_profit),    latest.net_profit < 0 ? '🔴 Loss' : '🟢 Profit');
+  setKPI('kpi_roe',       'EPS (₹)',          fmt(latest.eps),            latest.year_label || '');
+  setKPI('kpi_eps',       'Op. Profit (₹Cr)', fmt(latest.operating_profit), 'Operating');
+
+  // Revenue + Net Profit chart
+  const years  = entries.map(e => e.year_label);
+  const rev    = entries.map(e => e.sales);
+  const profit = entries.map(e => e.net_profit);
+
+  const revCtx = document.getElementById('revChart');
+  if (revCtx) {
+    new Chart(revCtx.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: years,
+        datasets: [
+          { label: 'Revenue',    data: rev,    backgroundColor: 'rgba(15,118,110,0.8)', borderRadius: 4, borderSkipped: false },
+          { label: 'Net Profit', data: profit, backgroundColor: 'rgba(37,99,235,0.8)',  borderRadius: 4, borderSkipped: false },
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false } },
+          y: { grid: { color: 'rgba(0,0,0,0.04)' },
+               ticks: { callback: v => Math.abs(v) >= 1e5 ? (v/1e5).toFixed(0)+'L' : Math.abs(v) >= 1e3 ? (v/1e3).toFixed(0)+'K' : v } }
+        }
+      }
+    });
+  }
+
+  // Score radar
+  // ✅ NEW — matches your actual API
+  const scoreFields = [
+    { key: 'score_revenue_growth', label: 'Revenue Growth' },
+    { key: 'score_profit_margin',  label: 'Profit Margin'  },
+    { key: 'score_debt_equity',    label: 'Debt/Equity'    },
+    { key: 'score_roe',            label: 'ROE'            },
+    { key: 'score_cash_flow',      label: 'Cash Flow'      },
+  ];
+  const radarData   = scoreFields.map(f => score[f.key] || 0);
+  const radarLabels = scoreFields.map(f => f.label);
+  const radarCtx    = document.getElementById('scoreRadar');
+
+  if (radarCtx) {
+    if (radarData.some(v => v > 0)) {
+      new Chart(radarCtx.getContext('2d'), {
+        type: 'radar',
+        data: {
+          labels: radarLabels,
+          datasets: [{
+            data: radarData, fill: true,
+            backgroundColor: 'rgba(15,118,110,0.15)',
+            borderColor: '#0f766e', pointBackgroundColor: '#0f766e',
+            pointRadius: 4, borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          scales: { r: { min: 0, max: 20, ticks: { stepSize: 25, font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.07)' } } },
+          plugins: { legend: { display: false } }
+        }
+      });
+    } else {
+      radarCtx.closest('.card').querySelector('.card-body').innerHTML =
+        `<div class="text-center text-muted py-5">Score breakdown not available</div>`;
+    }
+  }
+}
+
+// ── Financials tab ───────────────────────────────────────
+function populateFinancials(pl, bs) {
+  const plEntries = pl.data || pl.results || pl.profit_loss || [];
+  const bsEntries = bs.data || bs.results || bs.balance_sheet || [];
+
+  if (plEntries.length) {
+    const years = plEntries.map(e => e.year_label);
+    const pm    = Object.fromEntries(plEntries.map(e => [e.year_label, e]));
+    buildTable('plHead', 'plBody', [
+      { label: 'Revenue (Sales)',  data: Object.fromEntries(years.map(y => [y, pm[y]?.sales])),            highlight: true  },
+      { label: 'Expenses',        data: Object.fromEntries(years.map(y => [y, pm[y]?.expenses])),          highlight: false },
+      { label: 'Operating Profit',data: Object.fromEntries(years.map(y => [y, pm[y]?.operating_profit])), highlight: true  },
+      { label: 'Net Profit',      data: Object.fromEntries(years.map(y => [y, pm[y]?.net_profit])),        highlight: true  },
+      { label: 'EPS (₹)',         data: Object.fromEntries(years.map(y => [y, pm[y]?.eps])),               highlight: false },
+    ], years);
+
+    // EPS + OPM dual-axis chart
+    const eps = plEntries.map(e => e.eps);
+    const opm = plEntries.map(e =>
+      e.operating_profit && e.sales ? +((e.operating_profit / e.sales) * 100).toFixed(2) : null
+    );
+    const epsCtx = document.getElementById('epsChart');
+    if (epsCtx) {
+      new Chart(epsCtx.getContext('2d'), {
+        type: 'line',
+        data: {
+          labels: years,
+          datasets: [
+            { label: 'EPS (₹)', data: eps, borderColor: '#0f766e', backgroundColor: 'rgba(15,118,110,0.08)',
+              fill: true, tension: 0.4, pointRadius: 4, yAxisID: 'y' },
+            { label: 'OPM %',  data: opm, borderColor: '#2563eb', backgroundColor: 'transparent',
+              tension: 0.4, pointRadius: 4, yAxisID: 'y1', borderDash: [5, 3] },
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { position: 'top', labels: { boxWidth: 10, font: { size: 11 } } } },
+          scales: {
+            x:  { grid: { display: false } },
+            y:  { position: 'left',  grid: { color: 'rgba(0,0,0,0.04)' }, title: { display: true, text: 'EPS (₹)', font: { size: 10 } } },
+            y1: { position: 'right', grid: { display: false },             title: { display: true, text: 'OPM %',   font: { size: 10 } } }
+          }
+        }
+      });
+    }
+  }
+
+  if (bsEntries.length) {
+    const years = bsEntries.map(e => e.year_label);
+    const bm    = Object.fromEntries(bsEntries.map(e => [e.year_label, e]));
+    buildTable('bsHead', 'bsBody', [
+      { label: 'Equity Capital', data: Object.fromEntries(years.map(y => [y, bm[y]?.equity_capital])), highlight: false },
+      { label: 'Reserves',       data: Object.fromEntries(years.map(y => [y, bm[y]?.reserves])),       highlight: false },
+      { label: 'Borrowings',     data: Object.fromEntries(years.map(y => [y, bm[y]?.borrowings])),     highlight: false },
+      { label: 'Total Assets',   data: Object.fromEntries(years.map(y => [y, bm[y]?.total_assets])),   highlight: true  },
+    ], years);
+  }
+}
+
+// ── Cash Flow tab ────────────────────────────────────────
+function populateCashFlow(cf) {
+  const entries = cf.data || cf.results || cf.cash_flow || [];
+  if (!entries.length) return;
+
+  const years = entries.map(e => e.year_label);
+  const cm    = Object.fromEntries(entries.map(e => [e.year_label, e]));
+  buildTable('cfHead', 'cfBody', [
+    { label: 'Operating CF',     data: Object.fromEntries(years.map(y => [y, cm[y]?.operating_activity])),  highlight: true  },
+    { label: 'Investing CF',     data: Object.fromEntries(years.map(y => [y, cm[y]?.investing_activity])),  highlight: false },
+    { label: 'Financing CF',     data: Object.fromEntries(years.map(y => [y, cm[y]?.financing_activity])),  highlight: false },
+    { label: 'Cash Conv. Ratio', data: Object.fromEntries(years.map(y => [y, cm[y]?.cash_conversion_ratio])),highlight: false },
+  ], years);
+
+  const recent = entries.slice(-6);
+  const cfCtx  = document.getElementById('cfChart');
+  if (cfCtx) {
+    new Chart(cfCtx.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: recent.map(e => e.year_label),
+        datasets: [
+          { label: 'Operating', data: recent.map(e => e.operating_activity), backgroundColor: 'rgba(15,118,110,0.8)', borderRadius: 4, borderSkipped: false },
+          { label: 'Investing', data: recent.map(e => e.investing_activity), backgroundColor: 'rgba(220,38,38,0.7)',  borderRadius: 4, borderSkipped: false },
+          { label: 'Financing', data: recent.map(e => e.financing_activity), backgroundColor: 'rgba(37,99,235,0.7)',  borderRadius: 4, borderSkipped: false },
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'top', labels: { boxWidth: 10, font: { size: 11 } } } },
+        scales: {
+          x: { grid: { display: false } },
+          y: { grid: { color: 'rgba(0,0,0,0.04)' },
+               ticks: { callback: v => Math.abs(v) >= 1e5 ? (v/1e5).toFixed(0)+'L' : Math.abs(v) >= 1e3 ? (v/1e3).toFixed(0)+'K' : v } }
+        }
+      }
+    });
+  }
+}
+
+// ── Ratios tab ───────────────────────────────────────────
+function populateRatios(pl, bs, score) {
+  const plData = pl.data || pl.results || pl.profit_loss || [];
+  const bsData = bs.data || bs.results || bs.balance_sheet || [];
+  const bsMap  = Object.fromEntries(bsData.map(r => [r.year_label, r]));
+
+  const entries = plData.map(p => {
+    const b           = bsMap[p.year_label] || {};
+    const equity      = b.equity_capital || b.total_equity || null;
+    const totalAssets = b.total_assets   || null;
+    const netProfit   = p.net_profit     || null;
+    const ebit        = p.operating_profit || null;
+    const capEmp      = totalAssets ? totalAssets - (b.current_liabilities || 0) : null;
+    return {
+      year_label:    p.year_label,
+      roe:           equity && netProfit   ? +((netProfit / equity) * 100).toFixed(1)        : null,
+      roa:           totalAssets && netProfit ? +((netProfit / totalAssets) * 100).toFixed(1) : null,
+      roce:          capEmp && ebit        ? +((ebit / capEmp) * 100).toFixed(1)             : null,
+      debt_equity:   equity && b.borrowings ? +((b.borrowings / equity).toFixed(2))          : null,
+      current_ratio: b.current_assets && b.current_liabilities
+                     ? +((b.current_assets / b.current_liabilities).toFixed(2)) : null,
+    };
+  });
+
+  if (entries.length) {
+    const years = entries.map(e => e.year_label);
+    const rm    = Object.fromEntries(entries.map(e => [e.year_label, e]));
+    const RATIO_ROWS = [
+      { label: 'ROE (%)',        key: 'roe'           },
+      { label: 'ROA (%)',        key: 'roa'           },
+      { label: 'ROCE (%)',       key: 'roce'          },
+      { label: 'Debt/Equity',   key: 'debt_equity'   },
+      { label: 'Current Ratio', key: 'current_ratio' },
+    ].filter(r => entries.some(e => e[r.key] != null));
+
+    buildTable('ratioHead', 'ratioBody',
+      RATIO_ROWS.map(r => ({
+        label: r.label,
+        data:  Object.fromEntries(years.map(y => [y, rm[y]?.[r.key]])),
+        pct: false, highlight: false
+      })), years);
+
+    const roeData = entries.map(e => e.roe);
+    const roeCtx  = document.getElementById('roeChart');
+    if (roeCtx && roeData.some(v => v != null)) {
+      new Chart(roeCtx.getContext('2d'), {
+        type: 'line',
+        data: {
+          labels: years,
+          datasets: [{ label: 'ROE %', data: roeData, borderColor: '#0f766e',
+            backgroundColor: 'rgba(15,118,110,0.1)', fill: true, tension: 0.4,
+            pointRadius: 4, borderWidth: 2 }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+                    y: { grid: { color: 'rgba(0,0,0,0.04)' } } }
+        }
+      });
+    }
+  }
+
+  // Score tiles
+  // ✅ NEW — matches your actual API
+  const tileData = [
+    { key: 'score_revenue_growth', label: 'Revenue Growth', icon: 'bi-graph-up-arrow', color: '#0f766e', max: 20 },
+    { key: 'score_profit_margin',  label: 'Profit Margin',  icon: 'bi-percent',         color: '#2563eb', max: 20 },
+    { key: 'score_debt_equity',    label: 'Debt/Equity',    icon: 'bi-shield-check',    color: '#16a34a', max: 20 },
+    { key: 'score_roe',            label: 'ROE Score',      icon: 'bi-lightning',       color: '#d97706', max: 20 },
+    { key: 'score_cash_flow',      label: 'Cash Flow',      icon: 'bi-arrow-repeat',    color: '#7c3aed', max: 20 },
+  ];
+  const totalScore = score.total_score || 0;
+  const col        = HEALTH_COLORS[score.health_label] || HEALTH_COLORS['AVERAGE'];
+  const tilesEl    = document.getElementById('scoreTiles');
+  if (!tilesEl) return;
+
+  tilesEl.innerHTML = `
+    <div class="score-total-banner" style="background:${col.bg};border-color:${col.border};">
+      <div>
+        <div style="font-size:.72rem;font-weight:600;color:${col.text};text-transform:uppercase;letter-spacing:.05em;">
+          Total Health Score
+        </div>
+        <div style="font-size:2rem;font-weight:800;color:${col.text};line-height:1.1;">
+          ${Math.round(totalScore)}<span style="font-size:.9rem;font-weight:400;">/100</span>
+        </div>
+      </div>
+      <span class="health-badge" style="background:white;color:${col.text};border-color:${col.border};font-size:.8rem;">
+        ${score.health_label || '—'}
+      </span>
+    </div>
+    <div class="score-tiles-grid mt-3">
+      // ✅ In scoreTiles innerHTML — update the tile map:
+        ${tileData.map(t => {
+        const v   = score[t.key];
+        const pct = v != null ? (v / t.max) * 100 : 0;   // ← divide by 20, not 100
+        return `
+            <div class="score-tile">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="score-tile-label"><i class="bi ${t.icon} me-1"></i>${t.label}</span>
+                <span class="score-tile-val" style="color:${t.color};">
+                ${v != null ? Math.round(v) : '—'}<span style="font-size:.65rem;color:var(--color-text-muted);">/20</span>
+                </span>
+            </div>
+            <div class="score-bar-bg">
+                <div class="score-bar-fill" style="width:${pct}%;background:${t.color};"></div>
+            </div>
+            </div>`;
+        }).join('')}
+    </div>`;
+}
+
+document.addEventListener('DOMContentLoaded', loadDetail);
+</script>
+{% endblock %}

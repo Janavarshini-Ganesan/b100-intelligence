@@ -1,0 +1,408 @@
+{% extends 'frontend/base.html' %}
+{% block title %}Health Scores — B100 Intelligence{% endblock %}
+
+{% block content %}
+
+<!-- PAGE HEADER -->
+<div class="page-header">
+  <div class="container-fluid px-4">
+    <div class="row align-items-center g-3">
+      <div class="col-md-5">
+        <h1 class="page-title mb-1"><i class="bi bi-heart-pulse me-2 text-primary-custom"></i>Health Leaderboard</h1>
+        <p class="page-subtitle mb-0">ML-scored rankings for all <span id="totalCount">—</span> Nifty 100 companies</p>
+      </div>
+      <div class="col-md-7">
+        <div class="d-flex gap-2 flex-wrap justify-content-md-end align-items-center">
+          <div class="search-box">
+            <i class="bi bi-search search-icon"></i>
+            <input type="text" id="searchInput" class="search-input" placeholder="Search company…" autocomplete="off">
+          </div>
+          <select id="sectorFilter" class="filter-select">
+            <option value="">All Sectors</option>
+          </select>
+          <select id="sortFilter" class="filter-select">
+            <option value="rank">Rank</option>
+            <option value="score_desc">Score ↓</option>
+            <option value="roe_desc">ROE ↓</option>
+            <option value="opm_desc">OPM ↓</option>
+            <option value="cagr_desc">Revenue CAGR ↓</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- HEALTH LABEL FILTER STRIP -->
+<div class="filter-bar">
+  <div class="container-fluid px-4">
+    <div class="d-flex gap-2 flex-wrap align-items-center">
+      <span class="filter-label">Filter:</span>
+      <button class="hl-chip active" data-label="ALL">
+        All <span class="hl-count" id="cnt_ALL"></span>
+      </button>
+      <button class="hl-chip excellent" data-label="EXCELLENT">
+        <i class="bi bi-patch-check me-1"></i>Excellent <span class="hl-count" id="cnt_EXCELLENT"></span>
+      </button>
+      <button class="hl-chip good" data-label="GOOD">
+        <i class="bi bi-graph-up-arrow me-1"></i>Good <span class="hl-count" id="cnt_GOOD"></span>
+      </button>
+      <button class="hl-chip average" data-label="AVERAGE">
+        <i class="bi bi-dash-circle me-1"></i>Average <span class="hl-count" id="cnt_AVERAGE"></span>
+      </button>
+      <button class="hl-chip weak" data-label="WEAK">
+        <i class="bi bi-exclamation-triangle me-1"></i>Weak <span class="hl-count" id="cnt_WEAK"></span>
+      </button>
+      <button class="hl-chip poor" data-label="POOR">
+        <i class="bi bi-x-circle me-1"></i>Poor <span class="hl-count" id="cnt_POOR"></span>
+      </button>
+      <span class="ms-auto results-count" id="resultsCount"></span>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="container-fluid px-4 py-4">
+  <div class="row g-4">
+
+    <!-- LEFT: Score distribution chart -->
+    <div class="col-lg-3">
+      <div class="card mb-4">
+        <div class="card-header">
+          <i class="bi bi-bar-chart me-2 text-primary-custom"></i>Score Distribution
+        </div>
+        <div class="card-body">
+          <canvas id="distChart" height="180"></canvas>
+        </div>
+      </div>
+
+      <!-- Score component legend -->
+      <div class="card">
+        <div class="card-header">
+          <i class="bi bi-info-circle me-2 text-primary-custom"></i>Score Components
+        </div>
+        <div class="card-body p-0">
+          <div class="component-list">
+            <div class="component-item">
+              <div class="component-dot" style="background:#0f766e;"></div>
+              <div>
+                <div class="component-name">Revenue Growth</div>
+                <div class="component-desc">3Y CAGR performance</div>
+              </div>
+              <span class="component-max">/ 20</span>
+            </div>
+            <div class="component-item">
+              <div class="component-dot" style="background:#2563eb;"></div>
+              <div>
+                <div class="component-name">Profit Margin</div>
+                <div class="component-desc">Avg operating margin</div>
+              </div>
+              <span class="component-max">/ 20</span>
+            </div>
+            <div class="component-item">
+              <div class="component-dot" style="background:#16a34a;"></div>
+              <div>
+                <div class="component-name">Debt / Equity</div>
+                <div class="component-desc">Leverage ratio</div>
+              </div>
+              <span class="component-max">/ 20</span>
+            </div>
+            <div class="component-item">
+              <div class="component-dot" style="background:#d97706;"></div>
+              <div>
+                <div class="component-name">ROE</div>
+                <div class="component-desc">Return on equity</div>
+              </div>
+              <span class="component-max">/ 20</span>
+            </div>
+            <div class="component-item">
+              <div class="component-dot" style="background:#7c3aed;"></div>
+              <div>
+                <div class="component-name">Cash Flow</div>
+                <div class="component-desc">FCF positive years</div>
+              </div>
+              <span class="component-max">/ 20</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Leaderboard table -->
+    <div class="col-lg-9">
+
+      <!-- Top 3 spotlight -->
+      <div class="row g-3 mb-4" id="topThree"></div>
+
+      <!-- Full table -->
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-trophy me-2 text-primary-custom"></i>Full Rankings</span>
+          <span class="text-muted" style="font-size:.75rem;">Score out of 100</span>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-clean mb-0">
+              <thead>
+                <tr>
+                  <th style="width:50px;">Rank</th>
+                  <th>Company</th>
+                  <th>Sector</th>
+                  <th class="text-center">Score</th>
+                  <th class="text-center d-none d-md-table-cell">Rev CAGR</th>
+                  <th class="text-center d-none d-md-table-cell">OPM</th>
+                  <th class="text-center d-none d-lg-table-cell">D/E</th>
+                  <th class="text-center d-none d-lg-table-cell">ROE</th>
+                  <th class="text-center">Label</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="leaderboardBody">
+                <tr><td colspan="10" class="text-center py-5 text-muted">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let allScores   = [];
+let activeLabel = 'ALL';
+let activeSector= '';
+let activeSort  = 'rank';
+let searchQuery = '';
+
+const HC = {
+  EXCELLENT: { bg:'#f0fdf4', text:'#15803d', border:'#bbf7d0', bar:'#16a34a' },
+  GOOD:      { bg:'#eff6ff', text:'#1d4ed8', border:'#bfdbfe', bar:'#2563eb' },
+  AVERAGE:   { bg:'#fefce8', text:'#854d0e', border:'#fde68a', bar:'#d97706' },
+  WEAK:      { bg:'#fff7ed', text:'#c2410c', border:'#fed7aa', bar:'#ea580c' },
+  POOR:      { bg:'#fef2f2', text:'#dc2626', border:'#fecaca', bar:'#dc2626' },
+};
+
+// ── Load data ────────────────────────────────────────────
+async function loadScores() {
+  try {
+    const res  = await fetch('/api/scores/');
+    const data = await res.json();
+    allScores  = data.scores || [];
+
+    document.getElementById('totalCount').textContent = allScores.length;
+
+    // Label counts
+    const counts = { ALL: allScores.length };
+    allScores.forEach(s => { counts[s.health_label] = (counts[s.health_label] || 0) + 1; });
+    ['ALL','EXCELLENT','GOOD','AVERAGE','WEAK','POOR'].forEach(l => {
+      const el = document.getElementById('cnt_' + l);
+      if (el) el.textContent = counts[l] || 0;
+    });
+
+    // Sector filter options
+    const sectors = [...new Set(allScores.map(s => s.sector || 'Other'))].sort();
+    const sel = document.getElementById('sectorFilter');
+    sectors.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s; opt.textContent = s;
+      sel.appendChild(opt);
+    });
+
+    buildDistChart(counts);
+    render();
+  } catch(e) {
+    console.error(e);
+  }
+}
+
+// ── Filter + Sort ────────────────────────────────────────
+function filtered() {
+  return allScores.filter(s => {
+    const matchLabel  = activeLabel  === 'ALL' || s.health_label === activeLabel;
+    const matchSector = !activeSector || s.sector === activeSector;
+    const q = searchQuery.toLowerCase();
+    const matchSearch = !q
+      || (s.company_name||'').toLowerCase().includes(q)
+      || (s.symbol||'').toLowerCase().includes(q);
+    return matchLabel && matchSector && matchSearch;
+  }).sort((a, b) => {
+    if (activeSort === 'score_desc') return (b.total_score||0)  - (a.total_score||0);
+    if (activeSort === 'roe_desc')   return (parseFloat(b.roe_pct)||0)  - (parseFloat(a.roe_pct)||0);
+    if (activeSort === 'opm_desc')   return (parseFloat(b.avg_opm_pct)||0) - (parseFloat(a.avg_opm_pct)||0);
+    if (activeSort === 'cagr_desc')  return (parseFloat(b.revenue_cagr_3y)||0) - (parseFloat(a.revenue_cagr_3y)||0);
+    return (a.rank||999) - (b.rank||999);
+  });
+}
+
+// ── Render ───────────────────────────────────────────────
+function render() {
+  const data = filtered();
+  document.getElementById('resultsCount').textContent = `${data.length} companies`;
+  buildTopThree(allScores.slice(0, 3));
+  buildTable(data);
+}
+
+// ── Top 3 spotlight ──────────────────────────────────────
+function buildTopThree(top) {
+  const medals = ['🥇','🥈','🥉'];
+  const wrap   = document.getElementById('topThree');
+  if (activeLabel !== 'ALL' || activeSector || searchQuery) {
+    wrap.innerHTML = ''; return;
+  }
+  wrap.innerHTML = top.map((s, i) => {
+    const col = HC[s.health_label] || HC['GOOD'];
+    return `
+      <div class="col-md-4">
+        <a href="/companies/${s.symbol}/" class="top3-card" style="border-color:${col.border}; text-decoration:none;">
+          <div class="top3-medal">${medals[i]}</div>
+          <div class="top3-symbol">${s.symbol}</div>
+          <div class="top3-name">${s.company_name}</div>
+          <div class="top3-sector">${s.sector || 'Other'}</div>
+          <div class="top3-score" style="color:${col.text};">${s.total_score}</div>
+          <div class="top3-score-lbl" style="color:${col.text};">/ 100</div>
+          <div class="score-bar-bg mt-2">
+            <div class="score-bar-fill" style="width:${s.total_score}%;background:${col.bar};"></div>
+          </div>
+          <!-- Component mini bars -->
+          <div class="mini-components mt-3">
+            ${[
+              { key:'score_revenue_growth', label:'Rev',   color:'#0f766e' },
+              { key:'score_profit_margin',  label:'OPM',   color:'#2563eb' },
+              { key:'score_debt_equity',    label:'D/E',   color:'#16a34a' },
+              { key:'score_roe',            label:'ROE',   color:'#d97706' },
+              { key:'score_cash_flow',      label:'FCF',   color:'#7c3aed' },
+            ].map(c => `
+              <div class="mini-comp">
+                <div class="mini-comp-label">${c.label}</div>
+                <div class="score-bar-bg" style="height:4px;">
+                  <div class="score-bar-fill" style="width:${((s[c.key]||0)/20)*100}%;background:${c.color};height:4px;"></div>
+                </div>
+                <div class="mini-comp-val">${s[c.key]||0}</div>
+              </div>`).join('')}
+          </div>
+          <span class="health-badge mt-2 d-inline-block"
+                style="background:${col.bg};color:${col.text};border:1px solid ${col.border};">
+            ${s.health_label}
+          </span>
+        </a>
+      </div>`;
+  }).join('');
+}
+
+// ── Leaderboard table ────────────────────────────────────
+function buildTable(data) {
+  const tbody = document.getElementById('leaderboardBody');
+  if (!data.length) {
+    tbody.innerHTML = `<tr><td colspan="10" class="text-center py-5 text-muted">
+      <i class="bi bi-search" style="font-size:2rem;display:block;margin-bottom:.5rem;"></i>
+      No companies match your filters.
+    </td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = data.map(s => {
+    const col   = HC[s.health_label] || HC['AVERAGE'];
+    const cagr  = parseFloat(s.revenue_cagr_3y);
+    const opm   = parseFloat(s.avg_opm_pct);
+    const de    = parseFloat(s.latest_de_ratio);
+    const roe   = parseFloat(s.roe_pct);
+
+    return `
+      <tr>
+        <td>
+          <div class="rank-cell">
+            <span class="rank-num ${s.rank <= 10 ? 'rank-top' : ''}">${s.rank}</span>
+          </div>
+        </td>
+        <td>
+          <div style="font-weight:600;font-size:.875rem;">${s.company_name}</div>
+          <div style="font-size:.72rem;color:var(--color-text-muted);">${s.symbol}</div>
+        </td>
+        <td><span class="sector-tag">${s.sector || 'Other'}</span></td>
+        <td class="text-center">
+          <div class="d-flex align-items-center justify-content-center gap-2">
+            <div class="score-bar-bg" style="width:55px;">
+              <div class="score-bar-fill" style="width:${s.total_score}%;background:${col.bar};"></div>
+            </div>
+            <span style="font-weight:700;font-size:.85rem;">${s.total_score}</span>
+          </div>
+        </td>
+        <td class="text-center d-none d-md-table-cell">
+          <span class="${cagr >= 15 ? 'positive' : cagr >= 0 ? '' : 'negative'}">
+            ${!isNaN(cagr) ? cagr.toFixed(1) + '%' : '—'}
+          </span>
+        </td>
+        <td class="text-center d-none d-md-table-cell">
+          <span class="${opm >= 20 ? 'positive' : ''}">
+            ${!isNaN(opm) ? opm.toFixed(1) + '%' : '—'}
+          </span>
+        </td>
+        <td class="text-center d-none d-lg-table-cell">
+          <span class="${de < 0.5 ? 'positive' : de > 1 ? 'negative' : ''}">
+            ${!isNaN(de) ? de.toFixed(2) : '—'}
+          </span>
+        </td>
+        <td class="text-center d-none d-lg-table-cell">
+          <span class="${roe >= 20 ? 'positive' : roe < 10 ? 'negative' : ''}">
+            ${!isNaN(roe) ? roe.toFixed(1) + '%' : '—'}
+          </span>
+        </td>
+        <td class="text-center">
+          <span class="health-badge"
+                style="background:${col.bg};color:${col.text};border:1px solid ${col.border};">
+            ${s.health_label}
+          </span>
+        </td>
+        <td><a href="/companies/${s.symbol}/" class="view-all-link">View →</a></td>
+      </tr>`;
+  }).join('');
+}
+
+// ── Distribution Chart ───────────────────────────────────
+function buildDistChart(counts) {
+  const order  = ['EXCELLENT','GOOD','AVERAGE','WEAK','POOR'];
+  const colors = ['#16a34a','#2563eb','#d97706','#ea580c','#dc2626'];
+  const labels = order.filter(l => counts[l]);
+  const values = labels.map(l => counts[l] || 0);
+  const bgs    = labels.map(l => colors[order.indexOf(l)]);
+
+  new Chart(document.getElementById('distChart').getContext('2d'), {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data: values, backgroundColor: bgs, borderWidth: 2, borderColor: '#fff' }] },
+    options: {
+      responsive: true, maintainAspectRatio: true, cutout: '60%',
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 }, padding: 8 } },
+        tooltip: { callbacks: { label: c => ` ${c.label}: ${c.raw} companies` } }
+      }
+    }
+  });
+}
+
+// ── Event Listeners ──────────────────────────────────────
+document.getElementById('searchInput').addEventListener('input', e => {
+  searchQuery = e.target.value.trim(); render();
+});
+document.getElementById('sectorFilter').addEventListener('change', e => {
+  activeSector = e.target.value; render();
+});
+document.getElementById('sortFilter').addEventListener('change', e => {
+  activeSort = e.target.value; render();
+});
+document.querySelectorAll('.hl-chip').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.hl-chip').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeLabel = btn.dataset.label;
+    render();
+  });
+});
+
+document.addEventListener('DOMContentLoaded', loadScores);
+</script>
+{% endblock %}

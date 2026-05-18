@@ -1,0 +1,482 @@
+{% extends 'frontend/base.html' %}
+{% block title %}{{ sector_name }} — B100 Intelligence{% endblock %}
+
+{% block content %}
+
+<!-- PAGE HEADER -->
+<div class="page-header">
+  <div class="container-fluid px-4">
+    <div class="row align-items-center g-2">
+      <div class="col">
+        <nav class="breadcrumb-nav mb-1">
+          <a href="/">Overview</a>
+          <i class="bi bi-chevron-right"></i>
+          <a href="/sectors/">Sectors</a>
+          <i class="bi bi-chevron-right"></i>
+          <span id="bcSector">{{ sector_name }}</span>
+        </nav>
+        <h1 class="page-title mb-0 d-flex align-items-center gap-2">
+          <span id="sectorColorDot" class="sector-detail-dot"></span>
+          <span id="pageTitle">{{ sector_name }}</span>
+        </h1>
+        <p class="page-subtitle mt-1 mb-0" id="sectorSubtitle">Loading…</p>
+      </div>
+      <div class="col-auto d-flex gap-2 align-items-center flex-wrap">
+        <div class="search-box">
+          <i class="bi bi-search search-icon"></i>
+          <input type="text" id="searchInput" class="search-input"
+                 placeholder="Search company…" autocomplete="off">
+        </div>
+        <select id="sortFilter" class="filter-select">
+          <option value="rank">Best Rank</option>
+          <option value="score_desc">Score ↓</option>
+          <option value="roe_desc">ROE ↓</option>
+          <option value="cagr_desc">Rev CAGR ↓</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- KPI STRIP -->
+<div class="container-fluid px-4 py-3">
+  <div class="row g-3" id="kpiStrip">
+    <div class="col-6 col-md-3"><div class="kpi-card"><div class="skeleton skeleton-text" style="height:2.5rem;margin-bottom:.5rem;"></div><div class="skeleton skeleton-text" style="width:60%;"></div></div></div>
+    <div class="col-6 col-md-3"><div class="kpi-card"><div class="skeleton skeleton-text" style="height:2.5rem;margin-bottom:.5rem;"></div><div class="skeleton skeleton-text" style="width:60%;"></div></div></div>
+    <div class="col-6 col-md-3"><div class="kpi-card"><div class="skeleton skeleton-text" style="height:2.5rem;margin-bottom:.5rem;"></div><div class="skeleton skeleton-text" style="width:60%;"></div></div></div>
+    <div class="col-6 col-md-3"><div class="kpi-card"><div class="skeleton skeleton-text" style="height:2.5rem;margin-bottom:.5rem;"></div><div class="skeleton skeleton-text" style="width:60%;"></div></div></div>
+  </div>
+</div>
+
+<!-- CHARTS ROW -->
+<div class="container-fluid px-4 pb-3" style="overflow:hidden;">
+  <div class="row g-3">
+    <div class="col-12 col-xl-5">
+      <div class="card h-100">
+        <div class="card-header"><i class="bi bi-bar-chart me-2 text-primary-custom"></i>Health Score Distribution</div>
+        <div class="card-body"><canvas id="scoreChart" height="200"></canvas></div>
+      </div>
+    </div>
+    <div class="col-12 col-xl-4">
+      <div class="card h-100">
+        <div class="card-header"><i class="bi bi-scatter-chart me-2 text-primary-custom"></i>ROE vs Revenue CAGR</div>
+        <div class="card-body"><canvas id="scatterChart" height="200"></canvas></div>
+      </div>
+    </div>
+    <div class="col-12 col-xl-3">
+      <div class="card h-100">
+        <div class="card-header"><i class="bi bi-pentagon me-2 text-primary-custom"></i>Avg Score Components</div>
+        <div class="card-body"><canvas id="radarChart" height="200"></canvas></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- HEALTH LABEL FILTER -->
+<div class="filter-bar">
+  <div class="container-fluid px-4">
+    <div class="d-flex gap-2 flex-wrap align-items-center">
+      <span class="filter-label">Filter:</span>
+      <button class="hl-chip active" data-label="ALL">All <span class="hl-count" id="cnt_ALL"></span></button>
+      <button class="hl-chip excellent" data-label="EXCELLENT">Excellent <span class="hl-count" id="cnt_EXCELLENT"></span></button>
+      <button class="hl-chip good" data-label="GOOD">Good <span class="hl-count" id="cnt_GOOD"></span></button>
+      <button class="hl-chip average" data-label="AVERAGE">Average <span class="hl-count" id="cnt_AVERAGE"></span></button>
+      <button class="hl-chip weak" data-label="WEAK">Weak <span class="hl-count" id="cnt_WEAK"></span></button>
+      <span class="ms-auto results-count" id="resultsCount"></span>
+    </div>
+  </div>
+</div>
+
+<!-- COMPANY CARDS GRID -->
+<div class="sd-grid-wrapper">
+
+  <!-- Skeleton -->
+  <div id="skeletonGrid" class="sd-company-grid">
+    {% for _ in "12345678" %}
+    <div class="sd-skeleton-card">
+      <div class="d-flex gap-2 mb-3">
+        <div class="skeleton" style="width:36px;height:36px;border-radius:50%;flex-shrink:0;"></div>
+        <div style="flex:1;min-width:0;">
+          <div class="skeleton skeleton-text" style="width:50%;height:.6rem;margin-bottom:.4rem;"></div>
+          <div class="skeleton skeleton-text" style="width:80%;height:.7rem;"></div>
+        </div>
+        <div class="skeleton" style="width:32px;height:18px;border-radius:20px;flex-shrink:0;"></div>
+      </div>
+      <div class="skeleton skeleton-text" style="height:.55rem;margin-bottom:.8rem;"></div>
+      <div class="skeleton" style="height:2.5rem;border-radius:6px;margin-bottom:.5rem;"></div>
+      <div class="skeleton skeleton-text" style="height:.5rem;width:60%;"></div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Real grid -->
+  <div id="companyGrid" class="sd-company-grid d-none"></div>
+
+  <!-- Empty state -->
+  <div id="emptyState" class="empty-state d-none">
+    <i class="bi bi-search" style="font-size:2.5rem;color:var(--color-text-faint);"></i>
+    <h3 class="mt-3">No companies match</h3>
+    <p class="text-muted">Try a different search or filter.</p>
+  </div>
+
+</div>
+
+{% endblock %}
+
+
+{% block extra_scripts %}
+<script>
+const SECTOR_NAME = '{{ sector_name }}';
+let merged      = [];
+let activeLabel = 'ALL';
+let searchQuery = '';
+let activeSort  = 'rank';
+
+const HC = {
+  EXCELLENT: { bg:'#f0fdf4', text:'#15803d', border:'#bbf7d0', bar:'#16a34a' },
+  GOOD:      { bg:'#eff6ff', text:'#1d4ed8', border:'#bfdbfe', bar:'#2563eb' },
+  AVERAGE:   { bg:'#fefce8', text:'#854d0e', border:'#fde68a', bar:'#d97706' },
+  WEAK:      { bg:'#fff7ed', text:'#c2410c', border:'#fed7aa', bar:'#ea580c' },
+  POOR:      { bg:'#fef2f2', text:'#dc2626', border:'#fecaca', bar:'#dc2626' },
+};
+
+const SECTOR_COLORS = ['#0f766e','#2563eb','#16a34a','#d97706','#dc2626','#7c3aed','#0891b2','#be185d'];
+
+async function safeFetch(url) {
+  try {
+    const r = await fetch(url);
+    if (!r.ok) return {};
+    const ct = r.headers.get('content-type') || '';
+    if (!ct.includes('application/json')) return {};
+    return await r.json();
+  } catch(e) { console.warn(url, e); return {}; }
+}
+
+async function loadSectorDetail() {
+  const enc = encodeURIComponent(SECTOR_NAME);
+  const [compData, scoreData] = await Promise.all([
+    safeFetch(`/api/companies/?sector=${enc}`),
+    safeFetch(`/api/scores/?sector=${enc}`),
+  ]);
+
+  const companies = compData.companies || [];
+  const scores    = scoreData.scores   || [];
+
+  const scoreMap = {};
+  scores.forEach(s => { scoreMap[s.symbol] = s; });
+
+  merged = companies
+    .filter(c => c.symbol && c.company_name)
+    .map(c => ({ ...c, ...(scoreMap[c.symbol] || {}) }));
+
+  merged.sort((a, b) => (a.rank || 999) - (b.rank || 999));
+
+  const colorIdx = Math.abs(
+    SECTOR_NAME.split('').reduce((a, c) => a + c.charCodeAt(0), 0)
+  ) % SECTOR_COLORS.length;
+  const color = SECTOR_COLORS[colorIdx];
+
+  document.getElementById('sectorColorDot').style.background = color;
+  document.getElementById('sectorSubtitle').textContent =
+    `${merged.length} compan${merged.length !== 1 ? 'ies' : 'y'} · Nifty 100`;
+
+  const counts = { ALL: merged.length };
+  merged.forEach(m => {
+    if (m.health_label) counts[m.health_label] = (counts[m.health_label] || 0) + 1;
+  });
+  ['ALL','EXCELLENT','GOOD','AVERAGE','WEAK','POOR'].forEach(l => {
+    const el = document.getElementById('cnt_' + l);
+    if (el) el.textContent = counts[l] || 0;
+  });
+
+  buildKPIs(color);
+  buildCharts(color);
+  renderGrid();
+
+  document.getElementById('skeletonGrid').classList.add('d-none');
+  document.getElementById('companyGrid').classList.remove('d-none');
+}
+
+function buildKPIs(color) {
+  const avgROE   = avg(merged, 'roe_pct');
+  const avgScore = avg(merged, 'total_score');
+  const best     = [...merged].sort((a, b) => (a.rank || 999) - (b.rank || 999))[0];
+
+  document.getElementById('kpiStrip').innerHTML = `
+    <div class="col-6 col-md-3">
+      <div class="kpi-card">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="kpi-label">Companies</div>
+            <div class="kpi-value">${merged.length}</div>
+            <div class="kpi-sub">In ${SECTOR_NAME}</div>
+          </div>
+          <div class="kpi-icon" style="background:${color}18;color:${color};"><i class="bi bi-building"></i></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="kpi-card">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="kpi-label">Avg Health Score</div>
+            <div class="kpi-value">${avgScore != null ? Math.round(avgScore) : '—'}</div>
+            <div class="kpi-sub">out of 100</div>
+          </div>
+          <div class="kpi-icon" style="background:${color}18;color:${color};"><i class="bi bi-heart-pulse"></i></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="kpi-card">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="kpi-label">Avg ROE</div>
+            <div class="kpi-value">${avgROE != null ? avgROE.toFixed(1) + '%' : '—'}</div>
+            <div class="kpi-sub">Return on equity</div>
+          </div>
+          <div class="kpi-icon" style="background:${color}18;color:${color};"><i class="bi bi-graph-up-arrow"></i></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="kpi-card">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="kpi-label">Top Company</div>
+            <div class="kpi-value" style="font-size:1.1rem;">${best ? best.symbol : '—'}</div>
+            <div class="kpi-sub">Rank #${best ? best.rank : '—'} overall</div>
+          </div>
+          <div class="kpi-icon" style="background:${color}18;color:${color};"><i class="bi bi-trophy"></i></div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function buildCharts(color) {
+  const scoreSorted = [...merged].sort((a, b) => (a.rank || 999) - (b.rank || 999));
+
+  new Chart(document.getElementById('scoreChart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: scoreSorted.map(m => m.symbol),
+      datasets: [{
+        data: scoreSorted.map(m => m.total_score || 0),
+        backgroundColor: scoreSorted.map(m => (HC[m.health_label] || {}).bar || color),
+        borderRadius: 4, borderSkipped: false,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+      plugins: { legend: { display: false },
+        tooltip: { callbacks: { label: c => ` Score: ${c.raw}/100` } }
+      },
+      scales: {
+        x: { max: 100, grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { font: { size: 10 } } },
+        y: { grid: { display: false }, ticks: { font: { size: 10 } } }
+      }
+    }
+  });
+
+  const scatterData = merged
+    .filter(m => m.roe_pct != null && m.revenue_cagr_3y != null)
+    .map(m => ({
+      x: parseFloat(m.revenue_cagr_3y) || 0,
+      y: parseFloat(m.roe_pct) || 0,
+      label: m.symbol,
+      color: (HC[m.health_label] || {}).bar || color
+    }));
+
+  new Chart(document.getElementById('scatterChart').getContext('2d'), {
+    type: 'scatter',
+    data: {
+      datasets: [{
+        data: scatterData,
+        backgroundColor: scatterData.map(d => d.color + 'cc'),
+        pointRadius: 7, pointHoverRadius: 9,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: c => {
+              const d = scatterData[c.dataIndex];
+              return `${d.label}  ROE:${c.parsed.y.toFixed(1)}%  CAGR:${c.parsed.x.toFixed(1)}%`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: { title: { display: true, text: 'Revenue CAGR 3Y %', font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.04)' } },
+        y: { title: { display: true, text: 'ROE %', font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.04)' } }
+      }
+    }
+  });
+
+  const compKeys = [
+    { key: 'score_revenue_growth', label: 'Rev Growth' },
+    { key: 'score_profit_margin',  label: 'Profit Margin' },
+    { key: 'score_debt_equity',    label: 'Debt/Equity' },
+    { key: 'score_roe',            label: 'ROE' },
+    { key: 'score_cash_flow',      label: 'Cash Flow' },
+  ];
+
+  new Chart(document.getElementById('radarChart').getContext('2d'), {
+    type: 'radar',
+    data: {
+      labels: compKeys.map(c => c.label),
+      datasets: [{
+        data: compKeys.map(c => avg(merged, c.key) || 0),
+        fill: true,
+        backgroundColor: color + '22',
+        borderColor: color,
+        pointBackgroundColor: color,
+        pointRadius: 4, borderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: { r: { min: 0, max: 20, ticks: { stepSize: 5, font: { size: 9 } }, grid: { color: 'rgba(0,0,0,0.07)' } } },
+      plugins: { legend: { display: false } }
+    }
+  });
+}
+
+function filtered() {
+  return merged.filter(m => {
+    const matchLabel  = activeLabel === 'ALL' || m.health_label === activeLabel;
+    const q           = searchQuery.toLowerCase();
+    const matchSearch = !q
+      || (m.company_name || '').toLowerCase().includes(q)
+      || (m.symbol || '').toLowerCase().includes(q);
+    return matchLabel && matchSearch;
+  }).sort((a, b) => {
+    if (activeSort === 'score_desc') return (b.total_score || 0) - (a.total_score || 0);
+    if (activeSort === 'roe_desc')   return (parseFloat(b.roe_pct) || 0) - (parseFloat(a.roe_pct) || 0);
+    if (activeSort === 'cagr_desc')  return (parseFloat(b.revenue_cagr_3y) || 0) - (parseFloat(a.revenue_cagr_3y) || 0);
+    return (a.rank || 999) - (b.rank || 999);
+  });
+}
+
+function renderGrid() {
+  const data  = filtered();
+  const grid  = document.getElementById('companyGrid');
+  const empty = document.getElementById('emptyState');
+  document.getElementById('resultsCount').textContent = `${data.length} companies`;
+
+  if (!data.length) {
+    grid.classList.add('d-none');
+    empty.classList.remove('d-none');
+    return;
+  }
+  empty.classList.add('d-none');
+  grid.classList.remove('d-none');
+
+  grid.innerHTML = data.map(m => {
+    const col   = HC[m.health_label] || HC['AVERAGE'];
+    const score = m.total_score     != null ? m.total_score                             : null;
+    const roe   = m.roe_pct         != null ? parseFloat(m.roe_pct).toFixed(1)          : null;
+    const cagr  = m.revenue_cagr_3y != null ? parseFloat(m.revenue_cagr_3y).toFixed(1)  : null;
+    const opm   = m.avg_opm_pct     != null ? parseFloat(m.avg_opm_pct).toFixed(1)      : null;
+    const de    = m.latest_de_ratio != null ? parseFloat(m.latest_de_ratio).toFixed(2)   : null;
+    const init  = getInitials(m.company_name || m.symbol);
+
+    const roeClass  = roe  != null ? (parseFloat(roe)  >= 20 ? 'positive' : parseFloat(roe)  < 10 ? 'negative' : '') : '';
+    const cagrClass = cagr != null ? (parseFloat(cagr) >= 15 ? 'positive' : '') : '';
+    const opmClass  = opm  != null ? (parseFloat(opm)  >= 20 ? 'positive' : '') : '';
+    const deClass   = de   != null ? (parseFloat(de)   <  0.5 ? 'positive' : parseFloat(de) > 1 ? 'negative' : '') : '';
+
+    const websiteHTML = m.website
+      ? `<a href="${m.website}" target="_blank" rel="noopener noreferrer"
+            class="sd-website-link" onclick="event.stopPropagation();">
+           <i class="bi bi-box-arrow-up-right"></i> Website
+         </a>`
+      : '';
+
+  return `
+    <a href="/companies/${m.symbol}/" class="sd-company-card" style="text-decoration:none;">
+
+      <div class="sd-card-header">
+        <div class="sd-avatar" style="background:${col.bg};color:${col.text};">${init}</div>
+        <div class="sd-card-info">
+          <div class="sd-card-symbol">${m.symbol}</div>
+          <div class="sd-card-name">${m.company_name || m.symbol}</div>
+        </div>
+        ${m.rank ? `<div class="sd-rank-badge">#${m.rank}</div>` : ''}
+      </div>
+
+      <div class="sd-score-row">
+        <span class="sd-score-lbl">Score</span>
+        <div class="score-bar-bg">
+          <div class="score-bar-fill"
+               style="width:${score != null ? Math.min(score, 100) : 0}%;background:${col.bar};">
+          </div>
+        </div>
+        <span class="sd-score-num" style="color:${score != null ? col.text : 'var(--color-text-faint)'};">
+          ${score != null ? Math.round(score) : '—'}
+        </span>
+      </div>
+
+      <div class="sd-metrics">
+        <div class="sd-metric">
+          <div class="sd-metric-val ${roeClass}">${roe}%</div>
+          <div class="sd-metric-lbl">ROE</div>
+        </div>
+        <div class="sd-metric">
+          <div class="sd-metric-val ${cagrClass}">${cagr}%</div>
+          <div class="sd-metric-lbl">CAGR 3Y</div>
+        </div>
+        <div class="sd-metric">
+          <div class="sd-metric-val ${opmClass}">${opm === '—' ? '—' : opm + '%'}</div>
+          <div class="sd-metric-lbl">OPM</div>
+        </div>
+        <div class="sd-metric">
+          <div class="sd-metric-val ${deClass}">${de}</div>
+          <div class="sd-metric-lbl">D/E</div>
+        </div>
+      </div>
+
+      <div class="sd-card-footer">
+        <span class="health-badge"
+          style="background:${col.bg};color:${col.text};border-color:${col.border};">
+          ${m.health_label || '—'}
+        </span>
+        <span class="sd-view-link">View details →</span>
+      </div>
+
+    </a>`;
+  }).join('');
+}
+
+function avg(arr, key) {
+  const vals = arr.map(m => parseFloat(m[key])).filter(v => !isNaN(v));
+  return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+}
+
+function getInitials(name) {
+  if (!name) return '??';
+  const w = name.trim().split(/\s+/);
+  return w.length === 1 ? w[0].slice(0, 2).toUpperCase() : (w[0][0] + w[1][0]).toUpperCase();
+}
+
+document.getElementById('searchInput').addEventListener('input', e => {
+  searchQuery = e.target.value.trim(); renderGrid();
+});
+document.getElementById('sortFilter').addEventListener('change', e => {
+  activeSort = e.target.value; renderGrid();
+});
+document.querySelectorAll('.hl-chip').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.hl-chip').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeLabel = btn.dataset.label;
+    renderGrid();
+  });
+});
+
+document.addEventListener('DOMContentLoaded', loadSectorDetail);
+</script>
+{% endblock %}

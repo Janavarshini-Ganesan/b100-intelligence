@@ -1,0 +1,424 @@
+{% extends 'frontend/base.html' %}
+{% block title %}Market Overview — B100 Intelligence{% endblock %}
+
+{% block content %}
+
+<!-- HERO -->
+<section class="hero-section">
+  <div class="container-fluid px-4 py-4">
+    <div class="row align-items-center g-4">
+      <div class="col-lg-6">
+        <div class="hero-tag mb-2">
+          <i class="bi bi-circle-fill me-1" style="font-size:0.45rem;color:#16a34a;vertical-align:middle;"></i>
+          Live Analytics &nbsp;·&nbsp; Nifty 100
+        </div>
+        <h1 class="hero-title mb-2">
+          India's Top 100 Companies<br>
+          <span class="hero-accent">Financial Intelligence</span>
+        </h1>
+        <p class="hero-desc mb-4">
+          Deep financial analytics — P&L, balance sheet, cash flows, ML health scores
+          and growth metrics for every Nifty 100 company. 12 years of data.
+        </p>
+        <div class="d-flex gap-3 flex-wrap">
+          <a href="{% url 'companies' %}" class="btn-hero-primary">
+            <i class="bi bi-building me-2"></i>Browse Companies
+          </a>
+          <a href="{% url 'health_scores' %}" class="btn-hero-outline">
+            <i class="bi bi-heart-pulse me-2"></i>Health Scores
+          </a>
+        </div>
+      </div>
+      <div class="col-lg-6 d-none d-lg-block">
+        <div class="hero-stats-grid">
+          <div class="hero-stat-card">
+            <div class="hero-stat-val" id="h_companies">—</div>
+            <div class="hero-stat-lbl">Companies</div>
+          </div>
+          <div class="hero-stat-card">
+            <div class="hero-stat-val" id="h_sectors">—</div>
+            <div class="hero-stat-lbl">Sectors</div>
+          </div>
+          <div class="hero-stat-card accent">
+            <div class="hero-stat-val" id="h_roe">—</div>
+            <div class="hero-stat-lbl">Avg ROE %</div>
+          </div>
+          <div class="hero-stat-card">
+            <div class="hero-stat-val" id="h_rev">—</div>
+            <div class="hero-stat-lbl">Total Revenue (₹Cr)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- KPI STRIP -->
+<section class="container-fluid px-4 py-3">
+  <div class="row g-3" id="kpiRow">
+    <div class="col-6 col-sm-4 col-lg-2">
+      <div class="kpi-card">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="kpi-label">Excellent</div>
+            <div class="kpi-value" id="k_excellent">—</div>
+            <div class="kpi-sub">Score ≥ 85</div>
+          </div>
+          <div class="kpi-icon kpi-icon-green"><i class="bi bi-patch-check"></i></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-sm-4 col-lg-2">
+      <div class="kpi-card">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="kpi-label">Good</div>
+            <div class="kpi-value" id="k_good">—</div>
+            <div class="kpi-sub">Score 70–84</div>
+          </div>
+          <div class="kpi-icon kpi-icon-blue"><i class="bi bi-graph-up-arrow"></i></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-sm-4 col-lg-2">
+      <div class="kpi-card">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="kpi-label">Average</div>
+            <div class="kpi-value" id="k_average">—</div>
+            <div class="kpi-sub">Score 50–69</div>
+          </div>
+          <div class="kpi-icon kpi-icon-amber"><i class="bi bi-dash-circle"></i></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-sm-4 col-lg-2">
+      <div class="kpi-card">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="kpi-label">Weak</div>
+            <div class="kpi-value" id="k_weak">—</div>
+            <div class="kpi-sub">Score 35–49</div>
+          </div>
+          <div class="kpi-icon kpi-icon-amber"><i class="bi bi-exclamation-triangle"></i></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-sm-4 col-lg-2">
+      <div class="kpi-card">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="kpi-label">Poor</div>
+            <div class="kpi-value" id="k_poor">—</div>
+            <div class="kpi-sub">Score &lt; 35</div>
+          </div>
+          <div class="kpi-icon kpi-icon-red"><i class="bi bi-x-circle"></i></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-sm-4 col-lg-2">
+      <div class="kpi-card">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="kpi-label">Avg ROE</div>
+            <div class="kpi-value" id="k_roe">—</div>
+            <div class="kpi-sub">All companies</div>
+          </div>
+          <div class="kpi-icon kpi-icon-teal"><i class="bi bi-percent"></i></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MAIN GRID -->
+<section class="container-fluid px-4 pb-2">
+  <div class="row g-4">
+
+    <!-- Health Distribution Bar -->
+    <div class="col-lg-5">
+      <div class="card h-100">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-heart-pulse me-2 text-primary-custom"></i>Health Score Distribution</span>
+        </div>
+        <div class="card-body d-flex flex-column justify-content-center">
+          <div class="chart-box"><canvas id="healthBar" height="200"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sector Distribution Donut -->
+    <div class="col-lg-4">
+      <div class="card h-100">
+        <div class="card-header">
+          <i class="bi bi-pie-chart me-2 text-primary-custom"></i>Sector Distribution
+        </div>
+        <div class="card-body">
+          <div class="chart-box"><canvas id="sectorDonut" height="200"></canvas></div>
+          <div id="sectorLegend" class="mt-3 sector-legend"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Top Companies -->
+    <div class="col-lg-3">
+      <div class="card h-100">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-trophy me-2 text-primary-custom"></i>Top by Health</span>
+          <a href="{% url 'health_scores' %}" class="view-all-link">All →</a>
+        </div>
+        <div class="card-body p-0" id="topCompaniesList"></div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- SECOND ROW -->
+<section class="container-fluid px-4 pb-5 mt-4">
+  <div class="row g-4">
+
+    <!-- Sector Table -->
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-table me-2 text-primary-custom"></i>Sector Overview</span>
+          <a href="{% url 'sectors' %}" class="view-all-link">View all →</a>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-clean mb-0">
+              <thead>
+                <tr>
+                  <th>Sector</th>
+                  <th class="text-center">Companies</th>
+                  <th>Avg Health Score</th>
+                  <th class="text-center">Excellent</th>
+                  <th class="text-center">Weak/Poor</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="sectorTableBody">
+                <tr><td colspan="6" class="text-center py-4 text-muted">
+                  <div class="skeleton-row">Loading sectors...</div>
+                </td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="col-lg-4">
+      <div class="card h-100">
+        <div class="card-header">
+          <i class="bi bi-lightning me-2 text-primary-custom"></i>Quick Actions
+        </div>
+        <div class="card-body">
+          <div class="quick-links">
+            <a href="{% url 'companies' %}" class="quick-link-item">
+              <div class="quick-link-icon" style="background:#f0faf9;color:#0f766e;">
+                <i class="bi bi-building"></i>
+              </div>
+              <div>
+                <div class="quick-link-title">All Companies</div>
+                <div class="quick-link-sub">Search & filter 101 companies</div>
+              </div>
+              <i class="bi bi-chevron-right ms-auto text-muted"></i>
+            </a>
+            <a href="{% url 'health_scores' %}" class="quick-link-item">
+              <div class="quick-link-icon" style="background:#f0fdf4;color:#16a34a;">
+                <i class="bi bi-heart-pulse"></i>
+              </div>
+              <div>
+                <div class="quick-link-title">Health Leaderboard</div>
+                <div class="quick-link-sub">ML-scored rankings</div>
+              </div>
+              <i class="bi bi-chevron-right ms-auto text-muted"></i>
+            </a>
+            <a href="{% url 'sectors' %}" class="quick-link-item">
+              <div class="quick-link-icon" style="background:#eff6ff;color:#2563eb;">
+                <i class="bi bi-pie-chart"></i>
+              </div>
+              <div>
+                <div class="quick-link-title">Sector Analysis</div>
+                <div class="quick-link-sub">Compare across sectors</div>
+              </div>
+              <i class="bi bi-chevron-right ms-auto text-muted"></i>
+            </a>
+            <a href="{% url 'compare' %}" class="quick-link-item">
+              <div class="quick-link-icon" style="background:#fefce8;color:#854d0e;">
+                <i class="bi bi-arrow-left-right"></i>
+              </div>
+              <div>
+                <div class="quick-link-title">Compare Companies</div>
+                <div class="quick-link-sub">Side-by-side analysis</div>
+              </div>
+              <i class="bi bi-chevron-right ms-auto text-muted"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const COLORS = ['#0f766e','#2563eb','#16a34a','#d97706','#dc2626',
+                '#7c3aed','#0891b2','#c2410c','#4f46e5','#be185d',
+                '#065f46','#1d4ed8','#0369a1'];
+
+async function loadHome() {
+  try {
+    const res  = await fetch('/api/dashboard/summary/');
+    const data = await res.json();
+
+    // Hero stats
+    setText('h_companies', data.total_companies ?? '—');
+    setText('h_sectors',   data.total_sectors   ?? '—');
+    setText('h_roe',       data.avg_roe_pct != null ? data.avg_roe_pct.toFixed(1) + '%' : '—');
+    setText('h_rev',       data.latest_year_revenue_cr != null
+                             ? formatCr(data.latest_year_revenue_cr) : '—');
+
+    // KPI strip — health_distribution is array of {health_label, count}
+    const hd = {};
+    (data.health_distribution || []).forEach(r => hd[r.health_label] = r.count);
+    setText('k_excellent', hd['EXCELLENT'] ?? 0);
+    setText('k_good',      hd['GOOD']      ?? 0);
+    setText('k_average',   hd['AVERAGE']   ?? 0);
+    setText('k_weak',      hd['WEAK']      ?? 0);
+    setText('k_poor',      hd['POOR']      ?? 0);
+    setText('k_roe',       data.avg_roe_pct != null ? data.avg_roe_pct.toFixed(1) + '%' : '—');
+
+    // Health bar chart
+    buildHealthBar(hd);
+
+    // Sector donut + table from /api/companies/
+    const cRes  = await fetch('/api/companies/');
+    const cData = await cRes.json();
+    const sectorMap = {};
+    (cData.companies || []).forEach(c => {
+      const s = c.sector || 'Other';
+      sectorMap[s] = (sectorMap[s] || 0) + 1;
+    });
+    const sectors = Object.entries(sectorMap)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+    buildSectorDonut(sectors);
+    buildSectorTable(sectors);
+
+    // Top companies from scores API
+    const sRes  = await fetch('/api/scores/');
+    const sData = await sRes.json();
+    buildTopCompanies(sData.scores || []);
+
+  } catch(e) {
+    console.error('Load error:', e);
+  }
+}
+
+function setText(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+
+function formatCr(val) {
+  if (val >= 1e7)  return (val/1e7).toFixed(1)  + 'L Cr';
+  if (val >= 1e5)  return (val/1e5).toFixed(1)  + 'L Cr';
+  return Math.round(val).toLocaleString();
+}
+
+function buildHealthBar(hd) {
+  const order  = ['EXCELLENT','GOOD','AVERAGE','WEAK','POOR'];
+  const colors = ['#16a34a','#2563eb','#d97706','#ea580c','#dc2626'];
+  const labels = order.filter(k => hd[k] !== undefined);
+  const values = labels.map(k => hd[k] || 0);
+  const bgs    = labels.map((k,i) => colors[order.indexOf(k)]);
+
+  new Chart(document.getElementById('healthBar').getContext('2d'), {
+    type: 'bar',
+    data: { labels, datasets: [{ data: values, backgroundColor: bgs, borderRadius: 6, borderSkipped: false }] },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: { legend: { display: false },
+                 tooltip: { callbacks: { label: c => ` ${c.raw} companies` } } },
+      scales: {
+        x: { grid: { display: false } },
+        y: { grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { stepSize: 5 } }
+      }
+    }
+  });
+}
+
+function buildSectorDonut(sectors) {
+  const labels = sectors.map(s => s.name);
+  const values = sectors.map(s => s.count);
+
+  new Chart(document.getElementById('sectorDonut').getContext('2d'), {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data: values, backgroundColor: COLORS, borderWidth: 2, borderColor: '#fff' }] },
+    options: {
+      responsive: true, maintainAspectRatio: true, cutout: '65%',
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: c => ` ${c.label}: ${c.raw} companies` } }
+      }
+    }
+  });
+
+  const legend = document.getElementById('sectorLegend');
+  legend.innerHTML = sectors.slice(0, 9).map((s, i) =>
+    `<div class="legend-item">
+      <span class="legend-dot" style="background:${COLORS[i % COLORS.length]}"></span>
+      <span class="legend-name">${s.name}</span>
+      <span class="legend-count">${s.count}</span>
+    </div>`
+  ).join('');
+}
+
+function buildTopCompanies(scores) {
+  const el = document.getElementById('topCompaniesList');
+  el.innerHTML = scores.slice(0, 8).map((c, i) =>
+    `<a href="/companies/${c.symbol}/" class="company-list-item">
+      <div class="company-rank">${c.rank || i+1}</div>
+      <div class="company-info">
+        <div class="company-symbol">${c.symbol}</div>
+        <div class="company-sector">${c.sector || ''}</div>
+      </div>
+      <div class="ms-auto text-end">
+        <div class="health-score-val">${c.total_score != null ? Math.round(c.total_score) : '—'}</div>
+        ${healthBadge(c.health_label || 'AVERAGE')}
+      </div>
+    </a>`
+  ).join('');
+}
+
+function buildSectorTable(sectors) {
+  const tbody = document.getElementById('sectorTableBody');
+  tbody.innerHTML = sectors.map(s =>
+    `<tr>
+      <td><strong>${s.name}</strong></td>
+      <td class="text-center">${s.count}</td>
+      <td>
+        <div class="d-flex align-items-center gap-2">
+          <div class="score-bar-bg">
+            <div class="score-bar-fill" style="width:60%"></div>
+          </div>
+          <span class="score-text">—</span>
+        </div>
+      </td>
+      <td class="text-center">—</td>
+      <td class="text-center">—</td>
+      <td><a href="/sectors/${encodeURIComponent(s.name)}/" class="view-all-link">View →</a></td>
+    </tr>`
+  ).join('');
+}
+
+document.addEventListener('DOMContentLoaded', loadHome);
+</script>
+{% endblock %}

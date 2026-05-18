@@ -1,0 +1,898 @@
+{% extends 'frontend/base.html' %}
+{% block title %}Compare Companies — B100 Intelligence{% endblock %}
+
+{% block content %}
+
+<!-- PAGE HEADER -->
+<div class="page-header pb-0">
+  <div class="container-fluid px-4">
+    <nav class="breadcrumb-nav mb-3" aria-label="breadcrumb">
+      <a href="{% url 'home' %}">Overview</a>
+      <span class="bc-sep">/</span>
+      <span class="bc-current">Compare</span>
+    </nav>
+    <div class="d-flex align-items-center gap-3 mb-4 flex-wrap">
+      <div>
+        <h1 class="page-title mb-0">Compare Companies</h1>
+        <p class="page-subtitle text-muted mt-1">Select up to 3 companies to compare financials side-by-side</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- COMPANY SELECTOR -->
+<div class="container-fluid px-4 py-3">
+  <div class="compare-selector-row">
+
+    <!-- Slot 1 -->
+    <div class="compare-slot" id="slot_0">
+      <div class="slot-label">Company A</div>
+      <div class="slot-search-wrap">
+        <input class="slot-input form-control" type="text" placeholder="Search symbol or name…"
+               data-slot="0" autocomplete="off" />
+        <div class="slot-dropdown d-none" data-slot="0"></div>
+      </div>
+      <div class="slot-chip d-none" id="chip_0">
+        <span class="chip-avatar" id="chip_avatar_0">—</span>
+        <span class="chip-name" id="chip_name_0">—</span>
+        <button class="chip-remove" data-slot="0" aria-label="Remove">×</button>
+      </div>
+    </div>
+
+    <div class="compare-vs">VS</div>
+
+    <!-- Slot 2 -->
+    <div class="compare-slot" id="slot_1">
+      <div class="slot-label">Company B</div>
+      <div class="slot-search-wrap">
+        <input class="slot-input form-control" type="text" placeholder="Search symbol or name…"
+               data-slot="1" autocomplete="off" />
+        <div class="slot-dropdown d-none" data-slot="1"></div>
+      </div>
+      <div class="slot-chip d-none" id="chip_1">
+        <span class="chip-avatar" id="chip_avatar_1">—</span>
+        <span class="chip-name" id="chip_name_1">—</span>
+        <button class="chip-remove" data-slot="1" aria-label="Remove">×</button>
+      </div>
+    </div>
+
+    <div class="compare-vs compare-vs--opt">VS</div>
+
+    <!-- Slot 3 (optional) -->
+    <div class="compare-slot" id="slot_2">
+      <div class="slot-label">Company C <span class="optional-tag">Optional</span></div>
+      <div class="slot-search-wrap">
+        <input class="slot-input form-control" type="text" placeholder="Search symbol or name…"
+               data-slot="2" autocomplete="off" />
+        <div class="slot-dropdown d-none" data-slot="2"></div>
+      </div>
+      <div class="slot-chip d-none" id="chip_2">
+        <span class="chip-avatar" id="chip_avatar_2">—</span>
+        <span class="chip-name" id="chip_name_2">—</span>
+        <button class="chip-remove" data-slot="2" aria-label="Remove">×</button>
+      </div>
+    </div>
+
+    <!-- Compare button -->
+    <button class="btn-compare" id="btnCompare" disabled>
+      <i class="bi bi-bar-chart-steps me-2"></i>Compare
+    </button>
+
+  </div>
+</div>
+
+<!-- EMPTY STATE -->
+<div id="emptyState" class="container-fluid px-4 py-5 text-center">
+  <div class="empty-compare-icon"><i class="bi bi-bar-chart-steps"></i></div>
+  <h3 class="mt-3">Select at least 2 companies</h3>
+  <p class="text-muted">Use the search fields above to pick companies and click Compare.</p>
+</div>
+
+<!-- COMPARE RESULTS (hidden until compare is triggered) -->
+<div id="compareResults" class="d-none">
+
+  <!-- Health Score & Overview Cards -->
+  <div class="container-fluid px-4 py-4">
+    <h2 class="section-heading mb-3"><i class="bi bi-patch-check me-2 text-primary-custom"></i>Health Score Overview</h2>
+    <div class="row g-3" id="scoreCards"></div>
+  </div>
+
+  <!-- Tab navigation -->
+  <div class="container-fluid px-4">
+    <div class="compare-tabs" id="compareTabs">
+      <button class="co-tab active" data-ctab="metrics">Key Metrics</button>
+      <button class="co-tab" data-ctab="financials">Financials</button>
+      <button class="co-tab" data-ctab="charts">Charts</button>
+      <button class="co-tab" data-ctab="ratios">Ratios</button>
+    </div>
+  </div>
+
+  <!-- ── TAB: KEY METRICS ── -->
+  <div class="ctab-panel active container-fluid px-4 py-4" id="ctab_metrics">
+    <div class="row g-4">
+      <div class="col-lg-8">
+        <div class="card">
+          <div class="card-header"><i class="bi bi-table me-2 text-primary-custom"></i>Side-by-Side Metrics</div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-fin mb-0" id="metricsTable">
+                <thead><tr id="metricsHead"><th>Metric</th></tr></thead>
+                <tbody id="metricsBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-4">
+        <div class="card h-100">
+          <div class="card-header"><i class="bi bi-radar me-2 text-primary-custom"></i>Score Radar</div>
+          <div class="card-body"><canvas id="radarChart" height="260"></canvas></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAB: FINANCIALS ── -->
+  <div class="ctab-panel d-none container-fluid px-4 py-4" id="ctab_financials">
+    <div class="row g-4">
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header"><i class="bi bi-currency-rupee me-2 text-primary-custom"></i>Revenue Comparison <span class="text-muted ms-2" style="font-size:.75rem;">(₹ Cr)</span></div>
+          <div class="card-body"><canvas id="revCompChart" height="200"></canvas></div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="card">
+          <div class="card-header"><i class="bi bi-graph-up me-2 text-primary-custom"></i>Net Profit Trend</div>
+          <div class="card-body"><canvas id="profitCompChart" height="220"></canvas></div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="card">
+          <div class="card-header"><i class="bi bi-percent me-2 text-primary-custom"></i>Operating Profit Margin %</div>
+          <div class="card-body"><canvas id="opmCompChart" height="220"></canvas></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAB: CHARTS ── -->
+  <div class="ctab-panel d-none container-fluid px-4 py-4" id="ctab_charts">
+    <div class="row g-4">
+      <div class="col-lg-6">
+        <div class="card">
+          <div class="card-header"><i class="bi bi-bar-chart me-2 text-primary-custom"></i>EPS Trend</div>
+          <div class="card-body"><canvas id="epsCompChart" height="230"></canvas></div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="card">
+          <div class="card-header"><i class="bi bi-arrow-left-right me-2 text-primary-custom"></i>Operating Cash Flow</div>
+          <div class="card-body"><canvas id="cfCompChart" height="230"></canvas></div>
+        </div>
+      </div>
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header"><i class="bi bi-bank me-2 text-primary-custom"></i>Total Assets vs Borrowings</div>
+          <div class="card-body"><canvas id="debtCompChart" height="180"></canvas></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAB: RATIOS ── -->
+  <div class="ctab-panel d-none container-fluid px-4 py-4" id="ctab_ratios">
+    <div class="row g-4">
+      <div class="col-lg-7">
+        <div class="card">
+          <div class="card-header"><i class="bi bi-calculator me-2 text-primary-custom"></i>Financial Ratios</div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-fin mb-0">
+                <thead><tr id="ratiosHead"><th>Ratio</th></tr></thead>
+                <tbody id="ratiosBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-5">
+        <div class="card">
+          <div class="card-header"><i class="bi bi-lightning me-2 text-primary-custom"></i>ROE Comparison</div>
+          <div class="card-body"><canvas id="roeCompChart" height="220"></canvas></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /compareResults -->
+
+{% endblock %}
+
+
+{% block extra_scripts %}
+<style>
+/* ── Selector row ── */
+.compare-selector-row {
+  display: flex; align-items: flex-end; gap: 1rem; flex-wrap: wrap;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem 1.5rem;
+}
+.compare-slot { flex: 1; min-width: 180px; position: relative; }
+.slot-label {
+  font-size: .7rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--color-text-muted); margin-bottom: .4rem;
+}
+.optional-tag {
+  font-size: .62rem; font-weight: 500; background: var(--color-bg);
+  border: 1px solid var(--color-border); border-radius: var(--radius-full);
+  padding: .05rem .35rem; color: var(--color-text-muted); margin-left: .3rem;
+}
+.slot-search-wrap { position: relative; }
+.slot-input { font-size: .82rem; padding: .4rem .7rem; }
+.slot-dropdown {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 200;
+  background: var(--color-surface-2); border: 1px solid var(--color-border);
+  border-radius: var(--radius-md); box-shadow: var(--shadow-md);
+  max-height: 220px; overflow-y: auto;
+}
+.slot-drop-item {
+  padding: .5rem .75rem; cursor: pointer; font-size: .8rem;
+  display: flex; align-items: center; gap: .6rem;
+  border-bottom: 1px solid var(--color-border);
+  transition: background .12s;
+}
+.slot-drop-item:last-child { border-bottom: none; }
+.slot-drop-item:hover { background: var(--color-surface-offset); }
+.slot-drop-symbol {
+  font-size: .68rem; font-weight: 700; color: var(--color-primary);
+  background: var(--color-primary-highlight); border-radius: var(--radius-sm);
+  padding: .1rem .35rem; flex-shrink: 0;
+}
+.slot-drop-name { color: var(--color-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.slot-drop-sector { font-size: .65rem; color: var(--color-text-muted); margin-left: auto; white-space: nowrap; flex-shrink: 0; }
+
+/* Selected chip */
+.slot-chip {
+  display: flex; align-items: center; gap: .5rem;
+  background: var(--color-primary-highlight);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: .35rem .6rem; margin-top: .5rem;
+}
+.chip-avatar {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: var(--color-primary); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .62rem; font-weight: 700; flex-shrink: 0;
+}
+.chip-name { font-size: .78rem; font-weight: 600; color: var(--color-text); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip-remove {
+  background: none; border: none; cursor: pointer;
+  font-size: 1rem; line-height: 1; color: var(--color-text-muted);
+  padding: 0 .15rem; flex-shrink: 0;
+  transition: color .15s;
+}
+.chip-remove:hover { color: var(--color-error); }
+
+.compare-vs {
+  font-size: .72rem; font-weight: 800; letter-spacing: .1em;
+  color: var(--color-text-faint); align-self: center; flex-shrink: 0;
+  padding-bottom: .1rem;
+}
+.btn-compare {
+  padding: .55rem 1.4rem; font-size: .82rem; font-weight: 700;
+  background: var(--color-primary); color: #fff;
+  border: none; border-radius: var(--radius-md); cursor: pointer;
+  white-space: nowrap; flex-shrink: 0;
+  transition: background .18s, opacity .18s, transform .15s;
+  align-self: flex-end;
+}
+.btn-compare:not(:disabled):hover { background: var(--color-primary-hover); transform: translateY(-1px); }
+.btn-compare:disabled { opacity: .45; cursor: not-allowed; }
+
+/* Empty state */
+.empty-compare-icon {
+  font-size: 3rem; color: var(--color-text-faint);
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 80px; height: 80px; border-radius: 50%;
+  background: var(--color-surface-offset);
+  margin: 0 auto;
+}
+.section-heading { font-size: .88rem; font-weight: 700; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: .06em; }
+
+/* Score card */
+.score-compare-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.1rem;
+}
+.score-compare-card .scc-name { font-size: .82rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.score-compare-card .scc-symbol { font-size: .68rem; color: var(--color-primary); font-weight: 700; }
+.score-compare-card .scc-score { font-size: 2rem; font-weight: 800; line-height: 1; }
+.score-compare-card .scc-label { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+.scc-bar-row { display: flex; align-items: center; gap: .5rem; margin-top: .3rem; }
+.scc-bar-lbl { font-size: .62rem; color: var(--color-text-muted); width: 90px; flex-shrink: 0; }
+.scc-bar-val { font-size: .7rem; font-weight: 700; width: 28px; text-align: right; flex-shrink: 0; }
+
+/* Compare tabs */
+.compare-tabs { display: flex; gap: .25rem; border-bottom: 1px solid var(--color-border); }
+.ctab-panel { }
+
+/* Best/worst highlight in tables */
+.cell-best { color: var(--color-success, #16a34a); font-weight: 700; }
+.cell-worst { color: var(--color-error, #dc2626); }
+</style>
+
+<script>
+// ── Config ─────────────────────────────────────────────────────────────────
+const COMP_COLORS = ['#0f766e', '#2563eb', '#d97706'];
+const HEALTH_COLORS = {
+  EXCELLENT: { bg:'#f0fdf4', text:'#15803d', border:'#bbf7d0', stroke:'#16a34a' },
+  GOOD:      { bg:'#eff6ff', text:'#1d4ed8', border:'#bfdbfe', stroke:'#2563eb' },
+  AVERAGE:   { bg:'#fefce8', text:'#854d0e', border:'#fde68a', stroke:'#d97706' },
+  WEAK:      { bg:'#fff7ed', text:'#c2410c', border:'#fed7aa', stroke:'#ea580c' },
+  POOR:      { bg:'#fef2f2', text:'#dc2626', border:'#fecaca', stroke:'#dc2626' },
+};
+const SCORE_FIELDS = [
+  { key: 'score_revenue_growth', label: 'Revenue Growth' },
+  { key: 'score_profit_margin',  label: 'Profit Margin'  },
+  { key: 'score_debt_equity',    label: 'Debt / Equity'  },
+  { key: 'score_roe',            label: 'ROE'            },
+  { key: 'score_cash_flow',      label: 'Cash Flow'      },
+];
+
+// ── State ───────────────────────────────────────────────────────────────────
+const slots     = [null, null, null];   // { symbol, name, sector, score, pl, bs, cf }
+let   allCompanies = [];
+let   chartInstances = {};
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+const fmt  = v => (v != null && v !== '') ? Number(v).toLocaleString('en-IN', { maximumFractionDigits: 2 }) : '—';
+const fmtP = v => (v != null && v !== '') ? Number(v).toFixed(1) + '%' : '—';
+const isNeg = v => v != null && Number(v) < 0;
+
+function getInitials(name) {
+  if (!name) return '??';
+  const w = name.trim().split(/\s+/);
+  return w.length === 1 ? w[0].slice(0, 2).toUpperCase() : (w[0][0] + w[1][0]).toUpperCase();
+}
+
+async function safeFetch(url) {
+  try {
+    const r = await fetch(url);
+    if (!r.ok) return {};
+    const ct = r.headers.get('content-type') || '';
+    if (!ct.includes('application/json')) return {};
+    return await r.json();
+  } catch { return {}; }
+}
+
+function destroyChart(id) {
+  if (chartInstances[id]) { chartInstances[id].destroy(); delete chartInstances[id]; }
+}
+
+function makeChart(id, config) {
+  destroyChart(id);
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  chartInstances[id] = new Chart(ctx.getContext('2d'), config);
+}
+
+// ── Load all companies for search ───────────────────────────────────────────
+async function loadAllCompanies() {
+  const data = await safeFetch('/api/companies/');
+  allCompanies = Array.isArray(data) ? data
+    : (data.results || data.companies || data.data || []);
+}
+
+// ── Search / dropdown ────────────────────────────────────────────────────────
+document.querySelectorAll('.slot-input').forEach(input => {
+  let debounceT;
+  input.addEventListener('input', () => {
+    clearTimeout(debounceT);
+    debounceT = setTimeout(() => showDropdown(input), 200);
+  });
+  input.addEventListener('blur', () => {
+    setTimeout(() => hideDropdown(+input.dataset.slot), 200);
+  });
+});
+
+function showDropdown(input) {
+  const slotIdx = +input.dataset.slot;
+  const q       = input.value.trim().toLowerCase();
+  const dd      = document.querySelector(`.slot-dropdown[data-slot="${slotIdx}"]`);
+  if (!dd) return;
+
+  if (!q) { dd.classList.add('d-none'); dd.innerHTML = ''; return; }
+
+  const matches = allCompanies.filter(c => {
+    const sym  = (c.symbol || '').toLowerCase();
+    const name = (c.company_name || '').toLowerCase();
+    return sym.includes(q) || name.includes(q);
+  }).slice(0, 10);
+
+  if (!matches.length) { dd.classList.add('d-none'); dd.innerHTML = ''; return; }
+
+  dd.innerHTML = matches.map(c => `
+    <div class="slot-drop-item" data-symbol="${c.symbol}" data-name="${c.company_name || c.symbol}" data-sector="${c.sector || ''}" data-slot="${slotIdx}">
+      <span class="slot-drop-symbol">${c.symbol}</span>
+      <span class="slot-drop-name">${c.company_name || c.symbol}</span>
+      <span class="slot-drop-sector">${c.sector || ''}</span>
+    </div>`).join('');
+  dd.classList.remove('d-none');
+
+  dd.querySelectorAll('.slot-drop-item').forEach(item => {
+    item.addEventListener('mousedown', e => {
+      e.preventDefault();
+      selectCompany(+item.dataset.slot, item.dataset.symbol, item.dataset.name, item.dataset.sector);
+    });
+  });
+}
+
+function hideDropdown(slotIdx) {
+  const dd = document.querySelector(`.slot-dropdown[data-slot="${slotIdx}"]`);
+  if (dd) { dd.classList.add('d-none'); dd.innerHTML = ''; }
+}
+
+function selectCompany(slotIdx, symbol, name, sector) {
+  const input = document.querySelector(`.slot-input[data-slot="${slotIdx}"]`);
+  if (input) { input.value = ''; input.placeholder = symbol; }
+  hideDropdown(slotIdx);
+
+  const col = HEALTH_COLORS['AVERAGE'];
+  const initials = getInitials(name);
+
+  // chip
+  const chip   = document.getElementById(`chip_${slotIdx}`);
+  const avatar = document.getElementById(`chip_avatar_${slotIdx}`);
+  const cname  = document.getElementById(`chip_name_${slotIdx}`);
+  if (chip)   { chip.classList.remove('d-none'); }
+  if (avatar) { avatar.textContent = initials; avatar.style.background = COMP_COLORS[slotIdx]; }
+  if (cname)  { cname.textContent = `${symbol} · ${name}`; }
+
+  slots[slotIdx] = { symbol, name, sector };
+  updateCompareButton();
+}
+
+// Chip remove
+document.querySelectorAll('.chip-remove').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const slotIdx = +btn.dataset.slot;
+    slots[slotIdx] = null;
+    const chip  = document.getElementById(`chip_${slotIdx}`);
+    const input = document.querySelector(`.slot-input[data-slot="${slotIdx}"]`);
+    if (chip)  chip.classList.add('d-none');
+    if (input) { input.value = ''; input.placeholder = 'Search symbol or name…'; }
+    updateCompareButton();
+    document.getElementById('compareResults').classList.add('d-none');
+    document.getElementById('emptyState').classList.remove('d-none');
+  });
+});
+
+function updateCompareButton() {
+  const filled = slots.filter(Boolean).length;
+  document.getElementById('btnCompare').disabled = filled < 2;
+}
+
+// ── Tab logic ────────────────────────────────────────────────────────────────
+document.querySelectorAll('[data-ctab]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-ctab]').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.ctab-panel').forEach(p => { p.classList.add('d-none'); p.classList.remove('active'); });
+    btn.classList.add('active');
+    const panel = document.getElementById('ctab_' + btn.dataset.ctab);
+    if (panel) { panel.classList.remove('d-none'); panel.classList.add('active'); }
+  });
+});
+
+// ── Compare button ────────────────────────────────────────────────────────────
+document.getElementById('btnCompare').addEventListener('click', runCompare);
+
+async function runCompare() {
+  const active = slots.filter(Boolean);
+  if (active.length < 2) return;
+
+  document.getElementById('btnCompare').innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Loading…';
+  document.getElementById('btnCompare').disabled = true;
+
+  // Fetch all data in parallel
+  const fetches = active.map(s => Promise.all([
+    safeFetch(`/api/companies/${s.symbol}/`),
+    safeFetch(`/api/scores/${s.symbol}/`),
+    safeFetch(`/api/financials/${s.symbol}/pl/`),
+    safeFetch(`/api/financials/${s.symbol}/bs/`),
+    safeFetch(`/api/financials/${s.symbol}/cf/`),
+  ]));
+
+  const results = await Promise.all(fetches);
+
+  // Store enriched data
+  results.forEach(([comp, score, pl, bs, cf], i) => {
+    active[i].comp  = comp;
+    active[i].score = score;
+    active[i].pl    = pl.data || pl.results || pl.profit_loss || [];
+    active[i].bs    = bs.data || bs.results || bs.balance_sheet || [];
+    active[i].cf    = cf.data || cf.results || cf.cash_flow || [];
+  });
+
+  document.getElementById('emptyState').classList.add('d-none');
+  document.getElementById('compareResults').classList.remove('d-none');
+
+  renderScoreCards(active);
+  renderMetricsTable(active);
+  renderRadarChart(active);
+  renderFinancialCharts(active);
+  renderRatiosTable(active);
+  renderRatioCharts(active);
+
+  document.getElementById('btnCompare').innerHTML = '<i class="bi bi-bar-chart-steps me-2"></i>Compare';
+  document.getElementById('btnCompare').disabled = false;
+}
+
+// ── Score Cards ───────────────────────────────────────────────────────────────
+function renderScoreCards(companies) {
+  const container = document.getElementById('scoreCards');
+  if (!container) return;
+
+  container.innerHTML = companies.map((c, i) => {
+    const score = c.score || {};
+    const label = score.health_label || 'AVERAGE';
+    const col   = HEALTH_COLORS[label] || HEALTH_COLORS['AVERAGE'];
+    const total = score.total_score != null ? Math.round(score.total_score) : '—';
+    const color = COMP_COLORS[i];
+
+    const bars = SCORE_FIELDS.map(f => {
+      const v   = score[f.key] ?? 0;
+      const pct = Math.min((v / 20) * 100, 100);
+      return `
+        <div class="scc-bar-row">
+          <span class="scc-bar-lbl">${f.label}</span>
+          <div class="score-bar-bg" style="flex:1;height:5px;background:var(--color-border);border-radius:99px;overflow:hidden;">
+            <div class="score-bar-fill" style="width:${pct}%;background:${color};height:100%;border-radius:99px;"></div>
+          </div>
+          <span class="scc-bar-val" style="color:${color};">${Math.round(v)}</span>
+        </div>`;
+    }).join('');
+
+    return `
+      <div class="col-md-${companies.length === 2 ? '6' : '4'}">
+        <div class="score-compare-card" style="border-top: 3px solid ${color};">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <div style="width:32px;height:32px;border-radius:50%;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;flex-shrink:0;">
+              ${getInitials(c.name)}
+            </div>
+            <div style="min-width:0;">
+              <div class="scc-symbol">${c.symbol}</div>
+              <div class="scc-name">${c.name}</div>
+            </div>
+          </div>
+          <div class="d-flex align-items-baseline gap-2 mb-1">
+            <div class="scc-score" style="color:${color};">${total}</div>
+            <div style="font-size:.75rem;color:var(--color-text-muted);">/100</div>
+            <span class="health-badge ms-1" style="background:${col.bg};color:${col.text};border-color:${col.border};font-size:.68rem;">${label}</span>
+          </div>
+          ${bars}
+          ${score.rank ? `<div style="font-size:.65rem;color:var(--color-text-muted);margin-top:.5rem;">Rank #${score.rank} of 101</div>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── Metrics Table ─────────────────────────────────────────────────────────────
+function renderMetricsTable(companies) {
+  const head = document.getElementById('metricsHead');
+  const body = document.getElementById('metricsBody');
+  if (!head || !body) return;
+
+  head.innerHTML = '<th>Metric</th>' + companies.map((c, i) =>
+    `<th class="text-end" style="color:${COMP_COLORS[i]};">${c.symbol}</th>`
+  ).join('');
+
+  const latest = companies.map(c => c.pl[c.pl.length - 1] || {});
+  const bsLatest = companies.map(c => c.bs[c.bs.length - 1] || {});
+
+  const rows = [
+    { label: 'Revenue (₹Cr)',       vals: latest.map(r => r.sales),            higher: true  },
+    { label: 'Net Profit (₹Cr)',    vals: latest.map(r => r.net_profit),       higher: true  },
+    { label: 'Operating Profit',    vals: latest.map(r => r.operating_profit), higher: true  },
+    { label: 'EPS (₹)',             vals: latest.map(r => r.eps),              higher: true  },
+    { label: 'OPM %',               vals: latest.map((r,i) => r.operating_profit && r.sales ? +((r.operating_profit/r.sales)*100).toFixed(1) : null), higher: true, pct: true },
+    { label: 'Total Assets (₹Cr)',  vals: bsLatest.map(r => r.total_assets),   higher: true  },
+    { label: 'Borrowings (₹Cr)',    vals: bsLatest.map(r => r.borrowings),     higher: false },
+    { label: 'Health Score',        vals: companies.map(c => c.score?.total_score != null ? Math.round(c.score.total_score) : null), higher: true },
+  ];
+
+  body.innerHTML = rows.map(row => {
+    const nums = row.vals.map(v => v != null ? Number(v) : null);
+    const validNums = nums.filter(v => v !== null);
+    const best  = validNums.length ? (row.higher ? Math.max(...validNums) : Math.min(...validNums)) : null;
+    const worst = validNums.length ? (row.higher ? Math.min(...validNums) : Math.max(...validNums)) : null;
+
+    const cells = nums.map(v => {
+      let cls = '';
+      if (v !== null && v === best && validNums.length > 1)  cls = 'cell-best';
+      if (v !== null && v === worst && validNums.length > 1) cls = 'cell-worst';
+      return `<td class="text-end tabnum ${cls} ${isNeg(v)?'text-danger':''}">${row.pct ? fmtP(v) : fmt(v)}</td>`;
+    }).join('');
+
+    return `<tr><td class="fin-row-label">${row.label}</td>${cells}</tr>`;
+  }).join('');
+}
+
+// ── Radar Chart ───────────────────────────────────────────────────────────────
+function renderRadarChart(companies) {
+  const labels   = SCORE_FIELDS.map(f => f.label);
+  const datasets = companies.map((c, i) => ({
+    label: c.symbol,
+    data:  SCORE_FIELDS.map(f => c.score?.[f.key] || 0),
+    fill:  true,
+    backgroundColor: COMP_COLORS[i] + '22',
+    borderColor:     COMP_COLORS[i],
+    pointBackgroundColor: COMP_COLORS[i],
+    pointRadius: 4, borderWidth: 2,
+  }));
+
+  makeChart('radarChart', {
+    type: 'radar',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: { r: { min: 0, max: 20, ticks: { stepSize: 5, font: { size: 9 } }, grid: { color: 'rgba(0,0,0,0.06)' } } },
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } } },
+    }
+  });
+}
+
+// ── Financial Charts ──────────────────────────────────────────────────────────
+function renderFinancialCharts(companies) {
+  // Collect union of all years
+  const allYears = [...new Set(companies.flatMap(c => c.pl.map(r => r.year_label)))].sort();
+  const recentYears = allYears.slice(-7);
+
+  function byYear(plArr, key, years) {
+    const map = Object.fromEntries(plArr.map(r => [r.year_label, r]));
+    return years.map(y => map[y]?.[key] ?? null);
+  }
+
+  // Revenue grouped bar
+  makeChart('revCompChart', {
+    type: 'bar',
+    data: {
+      labels: recentYears,
+      datasets: companies.map((c, i) => ({
+        label: c.symbol,
+        data: byYear(c.pl, 'sales', recentYears),
+        backgroundColor: COMP_COLORS[i] + 'cc',
+        borderRadius: 3, borderSkipped: false,
+      }))
+    },
+    options: barOpts(false)
+  });
+
+  // Net profit line
+  makeChart('profitCompChart', {
+    type: 'line',
+    data: {
+      labels: recentYears,
+      datasets: companies.map((c, i) => ({
+        label: c.symbol,
+        data: byYear(c.pl, 'net_profit', recentYears),
+        borderColor: COMP_COLORS[i],
+        backgroundColor: COMP_COLORS[i] + '18',
+        fill: true, tension: 0.4, pointRadius: 4, borderWidth: 2,
+      }))
+    },
+    options: lineOpts()
+  });
+
+  // OPM %
+  makeChart('opmCompChart', {
+    type: 'line',
+    data: {
+      labels: recentYears,
+      datasets: companies.map((c, i) => ({
+        label: c.symbol,
+        data: c.pl.map(r => {
+          const yIdx = recentYears.indexOf(r.year_label);
+          return yIdx >= 0 && r.operating_profit && r.sales
+            ? +((r.operating_profit / r.sales) * 100).toFixed(2) : null;
+        }),
+        borderColor: COMP_COLORS[i],
+        backgroundColor: 'transparent',
+        tension: 0.4, pointRadius: 4, borderWidth: 2, borderDash: i > 0 ? [5,3] : [],
+      }))
+    },
+    options: lineOpts()
+  });
+}
+
+// ── Chart option helpers ───────────────────────────────────────────────────────
+function barOpts(stacked = false) {
+  return {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'top', labels: { boxWidth: 10, font: { size: 11 } } } },
+    scales: {
+      x: { stacked, grid: { display: false } },
+      y: { stacked, grid: { color: 'rgba(0,0,0,0.04)' },
+           ticks: { callback: v => Math.abs(v) >= 1e5 ? (v/1e5).toFixed(0)+'L' : Math.abs(v) >= 1e3 ? (v/1e3).toFixed(0)+'K' : v } }
+    }
+  };
+}
+function lineOpts() {
+  return {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'top', labels: { boxWidth: 10, font: { size: 11 } } } },
+    scales: {
+      x: { grid: { display: false } },
+      y: { grid: { color: 'rgba(0,0,0,0.04)' } }
+    }
+  };
+}
+
+// ── Ratios Table ──────────────────────────────────────────────────────────────
+function renderRatiosTable(companies) {
+  const head = document.getElementById('ratiosHead');
+  const body = document.getElementById('ratiosBody');
+  if (!head || !body) return;
+
+  head.innerHTML = '<th>Ratio</th>' + companies.map((c, i) =>
+    `<th class="text-end" style="color:${COMP_COLORS[i]};">${c.symbol}</th>`
+  ).join('');
+
+  function calcRatios(pl, bs) {
+    const latest  = pl[pl.length - 1] || {};
+    const bsLast  = bs[bs.length - 1] || {};
+    const equity  = bsLast.equity_capital || null;
+    const assets  = bsLast.total_assets || null;
+    const borrow  = bsLast.borrowings || null;
+    const profit  = latest.net_profit || null;
+    const ebit    = latest.operating_profit || null;
+    const currA   = bsLast.current_assets || null;
+    const currL   = bsLast.current_liabilities || null;
+    const capEmp  = assets ? assets - (currL || 0) : null;
+    return {
+      roe:           equity && profit   ? +((profit / equity) * 100).toFixed(1) : null,
+      roa:           assets && profit   ? +((profit / assets) * 100).toFixed(1) : null,
+      roce:          capEmp && ebit     ? +((ebit / capEmp) * 100).toFixed(1)   : null,
+      debt_equity:   equity && borrow   ? +((borrow / equity).toFixed(2))       : null,
+      current_ratio: currA && currL     ? +((currA / currL).toFixed(2))         : null,
+    };
+  }
+
+  const ratios = companies.map(c => calcRatios(c.pl, c.bs));
+
+  const RATIO_ROWS = [
+    { label: 'ROE (%)',        key: 'roe',           higher: true  },
+    { label: 'ROA (%)',        key: 'roa',           higher: true  },
+    { label: 'ROCE (%)',       key: 'roce',          higher: true  },
+    { label: 'Debt / Equity',  key: 'debt_equity',   higher: false },
+    { label: 'Current Ratio',  key: 'current_ratio', higher: true  },
+  ];
+
+  body.innerHTML = RATIO_ROWS.map(row => {
+    const nums      = ratios.map(r => r[row.key]);
+    const validNums = nums.filter(v => v !== null);
+    const best      = validNums.length ? (row.higher ? Math.max(...validNums) : Math.min(...validNums)) : null;
+    const worst     = validNums.length ? (row.higher ? Math.min(...validNums) : Math.max(...validNums)) : null;
+
+    const cells = nums.map(v => {
+      let cls = '';
+      if (v !== null && v === best  && validNums.length > 1) cls = 'cell-best';
+      if (v !== null && v === worst && validNums.length > 1) cls = 'cell-worst';
+      return `<td class="text-end tabnum ${cls}">${fmt(v)}</td>`;
+    }).join('');
+
+    return `<tr><td class="fin-row-label">${row.label}</td>${cells}</tr>`;
+  }).join('');
+
+  // Store for ROE chart
+  window._compareRatios = { companies, ratios };
+}
+
+// ── Ratio Charts ──────────────────────────────────────────────────────────────
+function renderRatioCharts(companies) {
+  const allYears    = [...new Set(companies.flatMap(c => c.pl.map(r => r.year_label)))].sort();
+  const recentYears = allYears.slice(-7);
+
+  // EPS chart
+  function byYear(arr, key, years) {
+    const map = Object.fromEntries(arr.map(r => [r.year_label, r]));
+    return years.map(y => map[y]?.[key] ?? null);
+  }
+  makeChart('epsCompChart', {
+    type: 'line',
+    data: {
+      labels: recentYears,
+      datasets: companies.map((c, i) => ({
+        label: c.symbol,
+        data: byYear(c.pl, 'eps', recentYears),
+        borderColor: COMP_COLORS[i],
+        backgroundColor: COMP_COLORS[i] + '18',
+        fill: true, tension: 0.4, pointRadius: 4, borderWidth: 2,
+      }))
+    },
+    options: lineOpts()
+  });
+
+  // Operating Cash Flow
+  makeChart('cfCompChart', {
+    type: 'bar',
+    data: {
+      labels: recentYears,
+      datasets: companies.map((c, i) => {
+        const cfMap = Object.fromEntries(c.cf.map(r => [r.year_label, r]));
+        return {
+          label: c.symbol,
+          data: recentYears.map(y => cfMap[y]?.operating_activity ?? null),
+          backgroundColor: COMP_COLORS[i] + 'cc',
+          borderRadius: 3, borderSkipped: false,
+        };
+      })
+    },
+    options: barOpts(false)
+  });
+
+  // Total Assets vs Borrowings (latest year, grouped)
+  const bsLabels  = ['Total Assets', 'Borrowings'];
+  makeChart('debtCompChart', {
+    type: 'bar',
+    data: {
+      labels: companies.map(c => c.symbol),
+      datasets: [
+        {
+          label: 'Total Assets',
+          data: companies.map(c => c.bs[c.bs.length - 1]?.total_assets ?? null),
+          backgroundColor: companies.map((_, i) => COMP_COLORS[i] + 'cc'),
+          borderRadius: 4, borderSkipped: false,
+        },
+        {
+          label: 'Borrowings',
+          data: companies.map(c => c.bs[c.bs.length - 1]?.borrowings ?? null),
+          backgroundColor: companies.map((_, i) => COMP_COLORS[i] + '55'),
+          borderRadius: 4, borderSkipped: false,
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'top', labels: { boxWidth: 10, font: { size: 11 } } } },
+      scales: {
+        x: { grid: { display: false } },
+        y: { grid: { color: 'rgba(0,0,0,0.04)' },
+             ticks: { callback: v => Math.abs(v)>=1e5?(v/1e5).toFixed(0)+'L':Math.abs(v)>=1e3?(v/1e3).toFixed(0)+'K':v } }
+      }
+    }
+  });
+
+  // ROE trend (line)
+  makeChart('roeCompChart', {
+    type: 'line',
+    data: {
+      labels: recentYears,
+      datasets: companies.map((c, i) => {
+        const bsMap = Object.fromEntries(c.bs.map(r => [r.year_label, r]));
+        return {
+          label: c.symbol,
+          data: recentYears.map(y => {
+            const pl = c.pl.find(r => r.year_label === y);
+            const bs = bsMap[y];
+            return pl && bs && bs.equity_capital ? +((pl.net_profit / bs.equity_capital) * 100).toFixed(1) : null;
+          }),
+          borderColor: COMP_COLORS[i],
+          backgroundColor: 'transparent',
+          tension: 0.4, pointRadius: 4, borderWidth: 2,
+        };
+      })
+    },
+    options: lineOpts()
+  });
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', loadAllCompanies);
+</script>
+{% endblock %}

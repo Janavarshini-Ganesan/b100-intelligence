@@ -26,12 +26,14 @@ class CompanyListView(APIView):
         summary="List all companies"
     )
     def get(self, request):
-        cache_key = "companies_all"
+        sector = request.query_params.get("sector")
+
+        # ✅ Cache key includes sector so each sector is cached separately
+        cache_key = f"companies_sector_{sector}" if sector else "companies_all"
         cached = cache.get(cache_key)
         if cached:
             return Response(cached)
 
-        sector = request.query_params.get("sector")
         if sector:
             data = run_query(
                 "SELECT * FROM dim_company WHERE sector = %s ORDER BY company_name",
@@ -43,7 +45,6 @@ class CompanyListView(APIView):
         result = {"count": len(data), "companies": data}
         cache.set(cache_key, result, 3600)
         return Response(result)
-
 
 class CompanyDetailView(APIView):
     """Get full details of a single company."""

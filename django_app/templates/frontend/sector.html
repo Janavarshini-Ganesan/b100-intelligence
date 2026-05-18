@@ -1,0 +1,423 @@
+{% extends 'frontend/base.html' %}
+{% block title %}Sectors — B100 Intelligence{% endblock %}
+
+{% block content %}
+
+<!-- PAGE HEADER -->
+<div class="page-header">
+  <div class="container-fluid px-4">
+    <div class="row align-items-center g-3">
+      <div class="col-md-6">
+        <h1 class="page-title mb-1"><i class="bi bi-pie-chart me-2 text-primary-custom"></i>Sector Analysis</h1>
+        <p class="page-subtitle mb-0">
+          <span id="sectorCount">—</span> sectors across all
+          <span id="companyCount">—</span> Nifty 100 companies
+        </p>
+      </div>
+      <div class="col-md-6">
+        <div class="d-flex gap-2 justify-content-md-end flex-wrap align-items-center">
+          <div class="search-box">
+            <i class="bi bi-search search-icon"></i>
+            <input type="text" id="searchInput" class="search-input"
+                   placeholder="Search sector…" autocomplete="off">
+          </div>
+          <select id="sortFilter" class="filter-select">
+            <option value="companies_desc">Most Companies</option>
+            <option value="roe_desc">Avg ROE ↓</option>
+            <option value="roce_desc">Avg ROCE ↓</option>
+            <option value="name_asc">Name A–Z</option>
+          </select>
+          <!-- View toggle -->
+          <div class="view-toggle">
+            <button class="view-btn active" id="btnGrid"><i class="bi bi-grid-3x3-gap"></i></button>
+            <button class="view-btn" id="btnTable"><i class="bi bi-list-ul"></i></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- KPI STRIP -->
+<div class="container-fluid px-4 py-3">
+  <div class="row g-3">
+    <div class="col-6 col-md-3">
+      <div class="kpi-card">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="kpi-label">Total Sectors</div>
+            <div class="kpi-value" id="kpi_sectors">—</div>
+            <div class="kpi-sub">Industry groups</div>
+          </div>
+          <div class="kpi-icon kpi-icon-teal"><i class="bi bi-pie-chart"></i></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="kpi-card">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="kpi-label">Largest Sector</div>
+            <div class="kpi-value" style="font-size:1.2rem;" id="kpi_largest">—</div>
+            <div class="kpi-sub" id="kpi_largest_count">— companies</div>
+          </div>
+          <div class="kpi-icon kpi-icon-blue"><i class="bi bi-building"></i></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="kpi-card">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="kpi-label">Best Avg ROE</div>
+            <div class="kpi-value" style="font-size:1.2rem;" id="kpi_best_roe">—</div>
+            <div class="kpi-sub" id="kpi_best_roe_val">—% ROE</div>
+          </div>
+          <div class="kpi-icon kpi-icon-green"><i class="bi bi-graph-up-arrow"></i></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="kpi-card">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="kpi-label">Best Avg ROCE</div>
+            <div class="kpi-value" style="font-size:1.2rem;" id="kpi_best_roce">—</div>
+            <div class="kpi-sub" id="kpi_best_roce_val">—% ROCE</div>
+          </div>
+          <div class="kpi-icon kpi-icon-amber"><i class="bi bi-lightning"></i></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CHARTS ROW -->
+<div class="container-fluid px-4 pb-2">
+  <div class="row g-4">
+    <!-- ROE vs ROCE scatter / bar -->
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-bar-chart-line me-2 text-primary-custom"></i>Avg ROE & ROCE by Sector</span>
+          <div class="d-flex gap-2">
+            <span class="chart-legend-dot" style="background:#0f766e;"></span>
+            <span class="chart-legend-lbl">ROE %</span>
+            <span class="chart-legend-dot ms-2" style="background:#2563eb;"></span>
+            <span class="chart-legend-lbl">ROCE %</span>
+          </div>
+        </div>
+        <div class="card-body"><canvas id="sectorBarChart" height="220"></canvas></div>
+      </div>
+    </div>
+    <!-- Company distribution donut -->
+    <div class="col-lg-4">
+      <div class="card h-100">
+        <div class="card-header">
+          <i class="bi bi-pie-chart me-2 text-primary-custom"></i>Company Distribution
+        </div>
+        <div class="card-body d-flex flex-column justify-content-center">
+          <canvas id="sectorDonut" height="200"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SECTOR GRID / TABLE -->
+<div class="container-fluid px-4 py-4 pb-5">
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <span class="results-count" id="resultsCount"></span>
+  </div>
+
+  <!-- Grid view -->
+  <div id="sectorGrid" class="sector-grid"></div>
+
+  <!-- Table view -->
+  <div id="sectorTableWrap" class="d-none">
+    <div class="card">
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-clean mb-0">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Sector</th>
+                <th class="text-center">Companies</th>
+                <th class="text-center">Avg ROE %</th>
+                <th class="text-center">Avg ROCE %</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="sectorTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Empty state -->
+  <div id="emptyState" class="empty-state d-none">
+    <i class="bi bi-search" style="font-size:2.5rem;color:var(--color-text-faint);"></i>
+    <h3 class="mt-3">No sectors found</h3>
+    <p class="text-muted">Try a different search term.</p>
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let allSectors = [];
+let activeView = 'grid';
+let activeSort = 'companies_desc';
+let searchQuery = '';
+
+const SECTOR_COLORS = [
+  '#0f766e','#2563eb','#16a34a','#d97706','#dc2626',
+  '#7c3aed','#0891b2','#c2410c','#4f46e5','#be185d',
+  '#065f46','#1d4ed8','#0369a1','#b45309','#9333ea',
+  '#0e7490','#15803d','#b91c1c'
+];
+
+// ── Load ─────────────────────────────────────────────────
+async function loadSectors() {
+  try {
+    const res  = await fetch('/api/sectors/');
+    const data = await res.json();
+    allSectors = data.sectors || [];
+
+    const totalCompanies = allSectors.reduce((s, r) => s + (r.company_count || 0), 0);
+    document.getElementById('sectorCount').textContent  = allSectors.length;
+    document.getElementById('companyCount').textContent = totalCompanies;
+    document.getElementById('kpi_sectors').textContent  = allSectors.length;
+
+    // Largest sector
+    const largest = [...allSectors].sort((a,b) => (b.company_count||0) - (a.company_count||0))[0];
+    if (largest) {
+      document.getElementById('kpi_largest').textContent       = largest.sector;
+      document.getElementById('kpi_largest_count').textContent = largest.company_count + ' companies';
+    }
+
+    // Best ROE
+    const bestROE = [...allSectors].sort((a,b) => (b.avg_roe_pct||0) - (a.avg_roe_pct||0))[0];
+    if (bestROE) {
+      document.getElementById('kpi_best_roe').textContent     = bestROE.sector;
+      document.getElementById('kpi_best_roe_val').textContent = bestROE.avg_roe_pct?.toFixed(1) + '% ROE';
+    }
+
+    // Best ROCE
+    const bestROCE = [...allSectors].sort((a,b) => (b.avg_roce_pct||0) - (a.avg_roce_pct||0))[0];
+    if (bestROCE) {
+      document.getElementById('kpi_best_roce').textContent     = bestROCE.sector;
+      document.getElementById('kpi_best_roce_val').textContent = bestROCE.avg_roce_pct?.toFixed(1) + '% ROCE';
+    }
+
+    buildCharts();
+    render();
+  } catch(e) {
+    console.error(e);
+  }
+}
+
+// ── Filter + Sort ────────────────────────────────────────
+function filtered() {
+  return allSectors.filter(s => {
+    const q = searchQuery.toLowerCase();
+    return !q || s.sector.toLowerCase().includes(q);
+  }).sort((a, b) => {
+    if (activeSort === 'roe_desc')        return (b.avg_roe_pct||0)   - (a.avg_roe_pct||0);
+    if (activeSort === 'roce_desc')       return (b.avg_roce_pct||0)  - (a.avg_roce_pct||0);
+    if (activeSort === 'name_asc')        return a.sector.localeCompare(b.sector);
+    return (b.company_count||0) - (a.company_count||0); // companies_desc default
+  });
+}
+
+// ── Render ───────────────────────────────────────────────
+function render() {
+  const data = filtered();
+  document.getElementById('resultsCount').textContent = `${data.length} sector${data.length !== 1 ? 's' : ''}`;
+
+  if (!data.length) {
+    document.getElementById('sectorGrid').classList.add('d-none');
+    document.getElementById('sectorTableWrap').classList.add('d-none');
+    document.getElementById('emptyState').classList.remove('d-none');
+    return;
+  }
+  document.getElementById('emptyState').classList.add('d-none');
+
+  if (activeView === 'grid') {
+    document.getElementById('sectorGrid').classList.remove('d-none');
+    document.getElementById('sectorTableWrap').classList.add('d-none');
+    renderGrid(data);
+  } else {
+    document.getElementById('sectorGrid').classList.add('d-none');
+    document.getElementById('sectorTableWrap').classList.remove('d-none');
+    renderTable(data);
+  }
+}
+
+// ── Grid ─────────────────────────────────────────────────
+function renderGrid(data) {
+  const maxCompanies = Math.max(...data.map(s => s.company_count || 0));
+  const el = document.getElementById('sectorGrid');
+
+  el.innerHTML = data.map((s, i) => {
+    const color    = SECTOR_COLORS[i % SECTOR_COLORS.length];
+    const widthPct = maxCompanies ? ((s.company_count / maxCompanies) * 100).toFixed(0) : 0;
+    const roe      = s.avg_roe_pct  != null ? s.avg_roe_pct.toFixed(1)  : '—';
+    const roce     = s.avg_roce_pct != null ? s.avg_roce_pct.toFixed(1) : '—';
+    const slug     = encodeURIComponent(s.sector);
+
+    return `
+      <a href="/sectors/${slug}/" class="sector-card" style="text-decoration:none;">
+        <div class="sector-card-top" style="border-left: 4px solid ${color};">
+          <div class="sector-icon-wrap" style="background:${color}15; color:${color};">
+            <i class="bi bi-diagram-3"></i>
+          </div>
+          <div class="sector-card-info">
+            <div class="sector-card-name">${s.sector}</div>
+            <div class="sector-card-count">${s.company_count} compan${s.company_count !== 1 ? 'ies' : 'y'}</div>
+          </div>
+          <i class="bi bi-arrow-right ms-auto" style="color:${color};font-size:.85rem;"></i>
+        </div>
+
+        <!-- Company count bar -->
+        <div class="sector-count-bar mt-3">
+          <div class="d-flex justify-content-between mb-1">
+            <span style="font-size:.72rem;color:var(--color-text-muted);">Company share</span>
+            <span style="font-size:.72rem;font-weight:600;">${widthPct}%</span>
+          </div>
+          <div class="score-bar-bg">
+            <div class="score-bar-fill" style="width:${widthPct}%;background:${color};"></div>
+          </div>
+        </div>
+
+        <!-- ROE + ROCE metrics -->
+        <div class="sector-metrics mt-3">
+          <div class="sector-metric">
+            <div class="sector-metric-val" style="color:${color};">${roe}%</div>
+            <div class="sector-metric-lbl">Avg ROE</div>
+          </div>
+          <div class="sector-metric-divider"></div>
+          <div class="sector-metric">
+            <div class="sector-metric-val" style="color:${color};">${roce}%</div>
+            <div class="sector-metric-lbl">Avg ROCE</div>
+          </div>
+        </div>
+      </a>`;
+  }).join('');
+}
+
+// ── Table ─────────────────────────────────────────────────
+function renderTable(data) {
+  const tbody = document.getElementById('sectorTableBody');
+  tbody.innerHTML = data.map((s, i) => {
+    const color = SECTOR_COLORS[i % SECTOR_COLORS.length];
+    const roe   = s.avg_roe_pct  != null ? s.avg_roe_pct.toFixed(1)  + '%' : '—';
+    const roce  = s.avg_roce_pct != null ? s.avg_roce_pct.toFixed(1) + '%' : '—';
+    const slug  = encodeURIComponent(s.sector);
+    return `
+      <tr>
+        <td style="font-size:.75rem;color:var(--color-text-muted);">${i + 1}</td>
+        <td>
+          <div class="d-flex align-items-center gap-2">
+            <div style="width:4px;height:32px;background:${color};border-radius:2px;flex-shrink:0;"></div>
+            <strong style="font-size:.875rem;">${s.sector}</strong>
+          </div>
+        </td>
+        <td class="text-center">
+          <div class="d-flex align-items-center justify-content-center gap-2">
+            <div class="score-bar-bg" style="width:60px;">
+              <div class="score-bar-fill" style="width:${(s.company_count/24)*100}%;background:${color};"></div>
+            </div>
+            <span style="font-weight:600;font-size:.85rem;">${s.company_count}</span>
+          </div>
+        </td>
+        <td class="text-center">
+          <span class="${s.avg_roe_pct >= 20 ? 'positive' : s.avg_roe_pct < 10 ? 'negative' : ''}"
+                style="font-weight:600;">${roe}</span>
+        </td>
+        <td class="text-center">
+          <span class="${s.avg_roce_pct >= 20 ? 'positive' : s.avg_roce_pct < 10 ? 'negative' : ''}"
+                style="font-weight:600;">${roce}</span>
+        </td>
+        <td><a href="/sectors/${slug}/" class="view-all-link">View →</a></td>
+      </tr>`;
+  }).join('');
+}
+
+// ── Charts ────────────────────────────────────────────────
+function buildCharts() {
+  const sorted = [...allSectors].sort((a,b) => (b.avg_roe_pct||0) - (a.avg_roe_pct||0));
+  const labels = sorted.map(s => s.sector);
+  const roe    = sorted.map(s => s.avg_roe_pct  || 0);
+  const roce   = sorted.map(s => s.avg_roce_pct || 0);
+
+  // ROE vs ROCE grouped bar
+  new Chart(document.getElementById('sectorBarChart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'ROE %',  data: roe,  backgroundColor: 'rgba(15,118,110,0.8)', borderRadius: 4, borderSkipped: false },
+        { label: 'ROCE %', data: roce, backgroundColor: 'rgba(37,99,235,0.7)',  borderRadius: 4, borderSkipped: false },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 35 } },
+        y: { grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { callback: v => v + '%' } }
+      }
+    }
+  });
+
+  // Company distribution donut
+  const donutSorted = [...allSectors].sort((a,b) => (b.company_count||0) - (a.company_count||0));
+  new Chart(document.getElementById('sectorDonut').getContext('2d'), {
+    type: 'doughnut',
+    data: {
+      labels: donutSorted.map(s => s.sector),
+      datasets: [{
+        data: donutSorted.map(s => s.company_count || 0),
+        backgroundColor: SECTOR_COLORS,
+        borderWidth: 2, borderColor: '#fff'
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true, cutout: '60%',
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 }, padding: 6 } },
+        tooltip: { callbacks: { label: c => ` ${c.label}: ${c.raw} companies` } }
+      }
+    }
+  });
+}
+
+// ── Event Listeners ──────────────────────────────────────
+document.getElementById('searchInput').addEventListener('input', e => {
+  searchQuery = e.target.value.trim(); render();
+});
+document.getElementById('sortFilter').addEventListener('change', e => {
+  activeSort = e.target.value; render();
+});
+document.getElementById('btnGrid').addEventListener('click', () => {
+  activeView = 'grid';
+  document.getElementById('btnGrid').classList.add('active');
+  document.getElementById('btnTable').classList.remove('active');
+  render();
+});
+document.getElementById('btnTable').addEventListener('click', () => {
+  activeView = 'table';
+  document.getElementById('btnTable').classList.add('active');
+  document.getElementById('btnGrid').classList.remove('active');
+  render();
+});
+
+document.addEventListener('DOMContentLoaded', loadSectors);
+</script>
+{% endblock %}

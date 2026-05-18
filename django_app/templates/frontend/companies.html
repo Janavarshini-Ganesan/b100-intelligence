@@ -1,0 +1,368 @@
+{% extends 'frontend/base.html' %}
+{% block title %}Companies — B100 Intelligence{% endblock %}
+
+{% block content %}
+
+<!-- PAGE HEADER -->
+<div class="page-header">
+  <div class="container-fluid px-4">
+    <div class="row align-items-center g-3">
+      <div class="col-md-5">
+        <h1 class="page-title mb-1">Companies</h1>
+        <p class="page-subtitle mb-0">
+          <span id="companyCount">—</span> Nifty 100 companies across
+          <span id="sectorCount">—</span> sectors
+        </p>
+      </div>
+      <div class="col-md-7">
+        <div class="d-flex gap-2 flex-wrap justify-content-md-end">
+          <!-- Search -->
+          <div class="search-box">
+            <i class="bi bi-search search-icon"></i>
+            <input type="text" id="searchInput" class="search-input"
+                   placeholder="Search company or symbol…" autocomplete="off">
+          </div>
+          <!-- View toggle -->
+          <div class="view-toggle">
+            <button class="view-btn active" id="btnGrid" aria-label="Grid view">
+              <i class="bi bi-grid-3x3-gap"></i>
+            </button>
+            <button class="view-btn" id="btnTable" aria-label="Table view">
+              <i class="bi bi-list-ul"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FILTERS -->
+<div class="filter-bar">
+  <div class="container-fluid px-4">
+    <div class="d-flex gap-2 flex-wrap align-items-center">
+      <span class="filter-label">Sector:</span>
+      <div id="sectorFilters" class="d-flex gap-1 flex-wrap">
+        <button class="filter-chip active" data-sector="ALL">All</button>
+      </div>
+      <div class="ms-auto d-flex gap-2 align-items-center">
+        <span class="filter-label">Health:</span>
+        <select id="healthFilter" class="filter-select">
+          <option value="">All</option>
+          <option value="EXCELLENT">Excellent</option>
+          <option value="GOOD">Good</option>
+          <option value="AVERAGE">Average</option>
+          <option value="WEAK">Weak</option>
+          <option value="POOR">Poor</option>
+        </select>
+        <span class="filter-label">Sort:</span>
+        <select id="sortFilter" class="filter-select">
+          <option value="name">Name A–Z</option>
+          <option value="score_desc">Health Score ↓</option>
+          <option value="score_asc">Health Score ↑</option>
+          <option value="rank">Rank</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- RESULTS BAR -->
+<div class="container-fluid px-4 py-2">
+  <div class="d-flex justify-content-between align-items-center">
+    <span class="results-count" id="resultsCount">Loading…</span>
+    <button class="clear-filters-btn d-none" id="clearFilters">
+      <i class="bi bi-x me-1"></i>Clear filters
+    </button>
+  </div>
+</div>
+
+<!-- COMPANY GRID -->
+<div class="container-fluid px-4 pb-5">
+
+  <!-- Skeleton loaders -->
+  <div id="skeletonGrid" class="company-grid">
+    {% for i in "123456789012" %}
+    <div class="skeleton-card">
+      <div class="skeleton sk-line" style="height:16px;width:40%;margin-bottom:8px;"></div>
+      <div class="skeleton sk-line" style="height:22px;width:65%;margin-bottom:12px;"></div>
+      <div class="skeleton sk-line" style="height:12px;width:50%;margin-bottom:6px;"></div>
+      <div class="skeleton sk-line" style="height:12px;width:35%;"></div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Grid view -->
+  <div id="companyGrid" class="company-grid d-none"></div>
+
+  <!-- Table view -->
+  <div id="companyTableWrap" class="d-none">
+    <div class="table-responsive">
+      <table class="table table-clean">
+        <thead>
+          <tr>
+            <th style="width:44px">#</th>
+            <th>Company</th>
+            <th>Sector</th>
+            <th class="text-center">Health Score</th>
+            <th class="text-center">Label</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="companyTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Empty state -->
+  <div id="emptyState" class="empty-state d-none">
+    <i class="bi bi-search" style="font-size:2.5rem;color:var(--color-text-faint);"></i>
+    <h3 class="mt-3">No companies found</h3>
+    <p class="text-muted">Try changing your search or filters.</p>
+    <button class="btn-hero-primary mt-2" id="emptyReset">Clear filters</button>
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let allCompanies  = [];
+let scoreMap      = {};
+let activeView    = 'grid';
+let activeSector  = 'ALL';
+let activeHealth  = '';
+let activeSort    = 'name';
+let searchQuery   = '';
+
+const HEALTH_COLORS = {
+  EXCELLENT: { bg:'#f0fdf4', text:'#15803d', border:'#bbf7d0' },
+  GOOD:      { bg:'#eff6ff', text:'#1d4ed8', border:'#bfdbfe' },
+  AVERAGE:   { bg:'#fefce8', text:'#854d0e', border:'#fde68a' },
+  WEAK:      { bg:'#fff7ed', text:'#c2410c', border:'#fed7aa' },
+  POOR:      { bg:'#fef2f2', text:'#dc2626', border:'#fecaca' },
+};
+
+async function loadCompanies() {
+  try {
+    // Load companies
+    const cRes   = await fetch('/api/companies/');
+    const cData  = await cRes.json();
+    allCompanies = cData.companies || [];
+
+    // Load all scores into a map  symbol → { total_score, health_label, rank }
+    const sRes  = await fetch('/api/scores/');
+    const sData = await sRes.json();
+    (sData.scores || []).forEach(s => {
+      scoreMap[s.symbol] = { score: s.total_score, label: s.health_label, rank: s.rank };
+    });
+
+    // Update counts
+    const sectors = [...new Set(allCompanies.map(c => c.sector || 'Other'))].sort();
+    document.getElementById('companyCount').textContent = allCompanies.length;
+    document.getElementById('sectorCount').textContent  = sectors.length;
+
+    // Build sector filter chips
+    buildSectorChips(sectors);
+
+    // Hide skeleton, show grid
+    document.getElementById('skeletonGrid').classList.add('d-none');
+    render();
+
+  } catch(e) {
+    console.error(e);
+  }
+}
+
+function buildSectorChips(sectors) {
+  const wrap = document.getElementById('sectorFilters');
+  sectors.forEach(s => {
+    const btn = document.createElement('button');
+    btn.className = 'filter-chip';
+    btn.dataset.sector = s;
+    btn.textContent = s;
+    btn.addEventListener('click', () => {
+      activeSector = s;
+      document.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      render();
+    });
+    wrap.appendChild(btn);
+  });
+}
+
+function filtered() {
+  return allCompanies.filter(c => {
+    const sc = scoreMap[c.symbol] || {};
+    const matchSector = activeSector === 'ALL' || (c.sector || 'Other') === activeSector;
+    const matchHealth = !activeHealth || sc.label === activeHealth;
+    const q = searchQuery.toLowerCase();
+    const matchSearch = !q
+      || (c.company_name || '').toLowerCase().includes(q)
+      || (c.symbol || '').toLowerCase().includes(q)
+      || (c.sector  || '').toLowerCase().includes(q);
+    return matchSector && matchHealth && matchSearch;
+  }).sort((a, b) => {
+    const sa = scoreMap[a.symbol] || {}, sb = scoreMap[b.symbol] || {};
+    if (activeSort === 'score_desc') return (sb.score||0) - (sa.score||0);
+    if (activeSort === 'score_asc')  return (sa.score||0) - (sb.score||0);
+    if (activeSort === 'rank')       return (sa.rank||999) - (sb.rank||999);
+    return (a.company_name||'').localeCompare(b.company_name||'');
+  });
+}
+
+function render() {
+  const data = filtered();
+  document.getElementById('resultsCount').textContent =
+    `${data.length} compan${data.length !== 1 ? 'ies' : 'y'}`;
+
+  const hasFilters = activeSector !== 'ALL' || activeHealth || searchQuery || activeSort !== 'name';
+  document.getElementById('clearFilters').classList.toggle('d-none', !hasFilters);
+
+  if (data.length === 0) {
+    document.getElementById('companyGrid').classList.add('d-none');
+    document.getElementById('companyTableWrap').classList.add('d-none');
+    document.getElementById('emptyState').classList.remove('d-none');
+    return;
+  }
+  document.getElementById('emptyState').classList.add('d-none');
+
+  if (activeView === 'grid') {
+    document.getElementById('companyGrid').classList.remove('d-none');
+    document.getElementById('companyTableWrap').classList.add('d-none');
+    renderGrid(data);
+  } else {
+    document.getElementById('companyGrid').classList.add('d-none');
+    document.getElementById('companyTableWrap').classList.remove('d-none');
+    renderTable(data);
+  }
+}
+
+function renderGrid(data) {
+  const el = document.getElementById('companyGrid');
+  el.innerHTML = data.map(c => {
+    const sc  = scoreMap[c.symbol] || {};
+    const col = HEALTH_COLORS[sc.label] || HEALTH_COLORS['AVERAGE'];
+    const initials = getInitials(c.company_name || c.symbol);
+    const scoreBar = sc.score != null
+      ? `<div class="score-bar-bg mt-2"><div class="score-bar-fill" style="width:${Math.min(sc.score,100)}%"></div></div>`
+      : '';
+    return `
+      <a href="/companies/${c.symbol}/" class="company-card" style="text-decoration:none;">
+        <div class="company-card-header">
+          <div class="company-avatar" style="background:${col.bg};color:${col.text};">
+            ${initials}
+          </div>
+          <div class="flex-1 overflow-hidden">
+            <div class="company-card-symbol">${c.symbol}</div>
+            <div class="company-card-sector">${c.sector || 'Other'}</div>
+          </div>
+          ${sc.label ? `<span class="health-badge" style="background:${col.bg};color:${col.text};border-color:${col.border};">${sc.label}</span>` : ''}
+        </div>
+        <div class="company-card-name">${c.company_name || c.symbol}</div>
+        <div class="d-flex align-items-center justify-content-between mt-2">
+          <div class="score-number">
+            ${sc.score != null ? `<span class="score-val">${Math.round(sc.score)}</span><span class="score-unit">/100</span>` : '<span class="text-muted" style="font-size:.8rem;">No score</span>'}
+          </div>
+          ${sc.rank ? `<span class="rank-badge">#${sc.rank}</span>` : ''}
+        </div>
+        ${scoreBar}
+      </a>`;
+  }).join('');
+}
+
+function renderTable(data) {
+  const tbody = document.getElementById('companyTableBody');
+  tbody.innerHTML = data.map((c, i) => {
+    const sc  = scoreMap[c.symbol] || {};
+    const col = HEALTH_COLORS[sc.label] || {};
+    return `
+      <tr>
+        <td class="text-muted" style="font-size:.78rem;">${i+1}</td>
+        <td>
+          <div style="font-weight:600;font-size:.875rem;">${c.company_name || c.symbol}</div>
+          <div style="font-size:.75rem;color:var(--color-text-muted);">${c.symbol}</div>
+        </td>
+        <td><span class="sector-tag">${c.sector || 'Other'}</span></td>
+        <td class="text-center">
+          <div class="d-flex align-items-center justify-content-center gap-2">
+            <div class="score-bar-bg" style="width:60px;">
+              <div class="score-bar-fill" style="width:${Math.min(sc.score||0,100)}%"></div>
+            </div>
+            <span style="font-size:.82rem;font-weight:600;">${sc.score != null ? Math.round(sc.score) : '—'}</span>
+          </div>
+        </td>
+        <td class="text-center">
+          ${sc.label
+            ? `<span class="health-badge" style="background:${col.bg||''};color:${col.text||''};border-color:${col.border||''};">${sc.label}</span>`
+            : '<span class="text-muted" style="font-size:.75rem;">—</span>'}
+        </td>
+        <td><a href="/companies/${c.symbol}/" class="view-all-link">View →</a></td>
+      </tr>`;
+  }).join('');
+}
+
+function getInitials(name) {
+  if (!name) return '?';
+  const words = name.split(/\s+/).filter(Boolean);
+  if (words.length === 1) return words[0].slice(0,2).toUpperCase();
+  return (words[0][0] + words[1][0]).toUpperCase();
+}
+
+// ── Event listeners ───────────────────────────────────
+document.getElementById('searchInput').addEventListener('input', e => {
+  searchQuery = e.target.value.trim();
+  render();
+});
+
+document.getElementById('healthFilter').addEventListener('change', e => {
+  activeHealth = e.target.value;
+  render();
+});
+
+document.getElementById('sortFilter').addEventListener('change', e => {
+  activeSort = e.target.value;
+  render();
+});
+
+document.querySelector('[data-sector="ALL"]').addEventListener('click', function() {
+  activeSector = 'ALL';
+  document.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
+  this.classList.add('active');
+  render();
+});
+
+document.getElementById('btnGrid').addEventListener('click', () => {
+  activeView = 'grid';
+  document.getElementById('btnGrid').classList.add('active');
+  document.getElementById('btnTable').classList.remove('active');
+  render();
+});
+
+document.getElementById('btnTable').addEventListener('click', () => {
+  activeView = 'table';
+  document.getElementById('btnTable').classList.add('active');
+  document.getElementById('btnGrid').classList.remove('active');
+  render();
+});
+
+document.getElementById('clearFilters').addEventListener('click', resetFilters);
+document.getElementById('emptyReset').addEventListener('click', resetFilters);
+
+function resetFilters() {
+  activeSector = 'ALL';
+  activeHealth = '';
+  activeSort   = 'name';
+  searchQuery  = '';
+  document.getElementById('searchInput').value = '';
+  document.getElementById('healthFilter').value = '';
+  document.getElementById('sortFilter').value   = 'name';
+  document.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
+  document.querySelector('[data-sector="ALL"]').classList.add('active');
+  render();
+}
+
+document.addEventListener('DOMContentLoaded', loadCompanies);
+</script>
+{% endblock %}
