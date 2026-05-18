@@ -7,11 +7,11 @@ load_dotenv(BASE_DIR.parent / ".env")
 
 SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-change-this")
 DEBUG = os.getenv("DEBUG", "False") == "True"
-ALLOWED_HOSTS = [
-    "127.0.0.1",
-    "localhost",
-    "b100-intelligence-9qmxm2xh0-janavarshini-ganesans-projects.vercel.app",
-]
+
+ALLOWED_HOSTS = [x.strip() for x in os.getenv(
+    "ALLOWED_HOSTS",
+    "127.0.0.1,localhost,.vercel.app"
+).split(",") if x.strip()]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -103,17 +103,25 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "1.0.0",
 }
 
-CORS_ALLOWED_ORIGINS = [
+default_cors_origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "https://b100-intelligence.vercel.app",
 ]
 
-extra_origins = os.getenv("CORS_ALLOWED_ORIGINS", "")
-if extra_origins:
-    CORS_ALLOWED_ORIGINS += [x.strip() for x in extra_origins.split(",") if x.strip()]
+env_cors_origins = [
+    x.strip() for x in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if x.strip()
+]
 
-CSRF_TRUSTED_ORIGINS=https://b100-intelligence-9qmxm2xh0-janavarshini-ganesans-projects.vercel.app
+CORS_ALLOWED_ORIGINS = list(dict.fromkeys(default_cors_origins + env_cors_origins))
+
+CSRF_TRUSTED_ORIGINS = [x.strip() for x in os.getenv(
+    "CSRF_TRUSTED_ORIGINS",
+    "https://b100-intelligence.vercel.app,https://*.vercel.app,http://localhost:8000,http://127.0.0.1:8000"
+).split(",") if x.strip()]
+
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "Asia/Kolkata"
 USE_I18N = True
