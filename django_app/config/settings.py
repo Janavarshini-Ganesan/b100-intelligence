@@ -7,7 +7,11 @@ load_dotenv(BASE_DIR.parent / ".env")
 
 SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-change-this")
 DEBUG = os.getenv("DEBUG", "False") == "True"
-ALLOWED_HOSTS = [h.strip() for h in os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",") if h.strip()]
+ALLOWED_HOSTS = [
+    "127.0.0.1",
+    "localhost",
+    "b100-intelligence-9qmxm2xh0-janavarshini-ganesans-projects.vercel.app",
+]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -109,10 +113,7 @@ extra_origins = os.getenv("CORS_ALLOWED_ORIGINS", "")
 if extra_origins:
     CORS_ALLOWED_ORIGINS += [x.strip() for x in extra_origins.split(",") if x.strip()]
 
-CSRF_TRUSTED_ORIGINS = [
-    x.strip() for x in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",") if x.strip()
-]
-
+CSRF_TRUSTED_ORIGINS=https://b100-intelligence-9qmxm2xh0-janavarshini-ganesans-projects.vercel.app
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "Asia/Kolkata"
 USE_I18N = True
