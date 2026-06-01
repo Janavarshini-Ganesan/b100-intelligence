@@ -4,7 +4,20 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from drf_spectacular.utils import extend_schema, OpenApiParameter
-
+from .serializers import (
+    CompanySerializer,
+    CompanyListResponseSerializer,
+    ErrorSerializer,
+    SectorListResponseSerializer,
+    ProfitLossResponseSerializer,
+    BalanceSheetResponseSerializer,
+    CashFlowResponseSerializer,
+    MLScoreSerializer,
+    MLScoreListResponseSerializer,
+    DashboardSummaryResponseSerializer,
+    TaskTriggerResponseSerializer,
+    ETLStatusResponseSerializer,
+)
 
 def run_query(sql, params=None):
     """Execute raw SQL and return list of dicts."""
@@ -22,8 +35,10 @@ class CompanyListView(APIView):
     """List all 101 Nifty 100 companies with basic info."""
 
     @extend_schema(
+        operation_id="listCompanies",
         parameters=[OpenApiParameter("sector", str, description="Filter by sector")],
-        summary="List all companies"
+        summary="List all companies",
+        responses={200: CompanyListResponseSerializer}
     )
     def get(self, request):
         sector = request.query_params.get("sector")
@@ -49,7 +64,12 @@ class CompanyListView(APIView):
 class CompanyDetailView(APIView):
     """Get full details of a single company."""
 
-    @extend_schema(summary="Get company detail by symbol")
+    @extend_schema(
+        operation_id="retrieveCompanyBySymbol",
+        summary="Get company detail by symbol",
+        responses={200: CompanySerializer, 404: ErrorSerializer}
+    )
+
     def get(self, request, symbol):
         cache_key = f"company_{symbol}"
         cached = cache.get(cache_key)
@@ -76,7 +96,12 @@ class CompanyDetailView(APIView):
 class SectorListView(APIView):
     """List all sectors with company count and avg metrics."""
 
-    @extend_schema(summary="List all sectors with stats")
+    @extend_schema(
+        operation_id="listSectors",
+        summary="List all sectors with stats",
+        responses={200: SectorListResponseSerializer}
+    )
+
     def get(self, request):
         cache_key = "sectors_summary"
         cached = cache.get(cache_key)
@@ -106,7 +131,12 @@ class SectorListView(APIView):
 class ProfitLossView(APIView):
     """Year-wise Profit & Loss for a company."""
 
-    @extend_schema(summary="Get P&L data for a company")
+    @extend_schema(
+        operation_id="getProfitLossBySymbol",
+        summary="Get P&L data for a company",
+        responses={200: ProfitLossResponseSerializer, 404: ErrorSerializer}
+    )
+
     def get(self, request, symbol):
         cache_key = f"pl_{symbol}"
         cached = cache.get(cache_key)
@@ -139,7 +169,12 @@ class ProfitLossView(APIView):
 class BalanceSheetView(APIView):
     """Year-wise Balance Sheet for a company."""
 
-    @extend_schema(summary="Get Balance Sheet data for a company")
+    @extend_schema(
+        operation_id="getBalanceSheetBySymbol",
+        summary="Get Balance Sheet data for a company",
+        responses={200: BalanceSheetResponseSerializer, 404: ErrorSerializer}
+    )
+
     def get(self, request, symbol):
         cache_key = f"bs_{symbol}"
         cached = cache.get(cache_key)
@@ -172,7 +207,12 @@ class BalanceSheetView(APIView):
 class CashFlowView(APIView):
     """Year-wise Cash Flow for a company."""
 
-    @extend_schema(summary="Get Cash Flow data for a company")
+    @extend_schema(
+        operation_id="getCashFlowBySymbol",
+        summary="Get Cash Flow data for a company",
+        responses={200: CashFlowResponseSerializer, 404: ErrorSerializer}
+    )
+
     def get(self, request, symbol):
         cache_key = f"cf_{symbol}"
         cached = cache.get(cache_key)
@@ -210,12 +250,15 @@ class MLScoreListView(APIView):
     """All company ML health scores, ranked."""
 
     @extend_schema(
+        operation_id="listMLScores",
         parameters=[
-            OpenApiParameter("label",  str, description="Filter: EXCELLENT/GOOD/AVERAGE/WEAK/POOR"),
+            OpenApiParameter("label", str, description="Filter: EXCELLENT/GOOD/AVERAGE/WEAK/POOR"),
             OpenApiParameter("sector", str, description="Filter by sector"),
         ],
-        summary="Get all ML health scores"
+        summary="Get all ML health scores",
+        responses={200: MLScoreListResponseSerializer}
     )
+
     def get(self, request):
         label  = request.query_params.get("label", "").upper()
         sector = request.query_params.get("sector", "")
@@ -253,7 +296,12 @@ class MLScoreListView(APIView):
 class MLScoreDetailView(APIView):
     """ML health score detail for one company."""
 
-    @extend_schema(summary="Get ML score for a specific company")
+    @extend_schema(
+        operation_id="retrieveMLScoreBySymbol",
+        summary="Get ML score for a specific company",
+        responses={200: MLScoreSerializer, 404: ErrorSerializer}
+    )
+
     def get(self, request, symbol):
         rows = run_query(
             "SELECT * FROM fact_ml_scores WHERE symbol = %s",
@@ -274,7 +322,11 @@ class MLScoreDetailView(APIView):
 class DashboardSummaryView(APIView):
     """Top-level KPIs for the executive dashboard."""
 
-    @extend_schema(summary="Get dashboard summary KPIs")
+    @extend_schema(
+        operation_id="getDashboardSummary",
+        summary="Get dashboard summary KPIs",
+        responses={200: DashboardSummaryResponseSerializer}
+    )
     def get(self, request):
         cache_key = "dashboard_summary"
         cached = cache.get(cache_key)
@@ -337,7 +389,13 @@ from django.utils import timezone
 class TriggerETLView(APIView):
     """Manually trigger full ETL pipeline."""
 
-    @extend_schema(summary="Manually trigger ETL pipeline")
+    @extend_schema(
+        operation_id="triggerETLPipeline",
+        summary="Manually trigger ETL pipeline",
+        request=None,
+        responses={200: TaskTriggerResponseSerializer}
+    )
+
     def post(self, request):
         from api.tasks import run_full_etl
         task = run_full_etl.delay()
@@ -352,7 +410,13 @@ class TriggerETLView(APIView):
 class TriggerMLView(APIView):
     """Manually trigger ML scoring."""
 
-    @extend_schema(summary="Manually trigger ML scoring")
+    @extend_schema(
+        operation_id="triggerMLScoring",
+        summary="Manually trigger ML scoring",
+        request=None,
+        responses={200: TaskTriggerResponseSerializer}
+    )
+    
     def post(self, request):
         from api.tasks import run_ml_scoring
         task = run_ml_scoring.delay()
@@ -366,7 +430,11 @@ class TriggerMLView(APIView):
 class ETLStatusView(APIView):
     """Check Celery/Redis health status."""
 
-    @extend_schema(summary="Check ETL system health")
+    @extend_schema(
+        operation_id="getETLSystemStatus",
+        summary="Check ETL system health",
+        responses={200: ETLStatusResponseSerializer}
+    )
     def get(self, request):
         from api.tasks import health_check
         result = health_check.delay().get(timeout=10)
