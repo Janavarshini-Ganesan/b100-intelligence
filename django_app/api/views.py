@@ -329,7 +329,12 @@ class DashboardSummaryView(APIView):
     )
     def get(self, request):
         cache_key = "dashboard_summary"
-        cached = cache.get(cache_key)
+        try:
+            cached = cache.get(cache_key)
+        except Exception as e:
+        print("Redis Error:", e)
+        cached = None
+
         if cached:
             return Response(cached)
 
