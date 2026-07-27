@@ -70,12 +70,19 @@ DATABASES = {
         "OPTIONS": {"sslmode": "require"},
     }
 }
-
+'''
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.redis.RedisCache",
         "LOCATION": os.getenv("REDIS_URL"),
         "TIMEOUT": 3600,
+    }
+}
+'''
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "b100-local",
     }
 }
 
