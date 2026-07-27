@@ -378,7 +378,10 @@ class DashboardSummaryView(APIView):
             "top_5_companies":           top5,
         }
 
-        cache.set(cache_key, result, 3600)
+        try:
+            cache.set(cache_key, result, 3600)
+        except Exception as e:
+            print("Redis Error:", e)
         return Response(result)
 
 
